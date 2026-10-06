@@ -25,7 +25,20 @@ export function handleEvent(payload, log = console.log) {
   switch (payload.event) {
     case "draft.confirmed":
       // The payment reached the required confirmations (for Lightning: the
-      // provider confirmed it with a valid preimage). Mark your order paid here.
+      // provider confirmed it with a valid preimage). Mark your order paid here,
+      // and only here.
+      //
+      // receivedAmountSats and receivedAmount are set only when the amount
+      // differs from the billed amount. On draft.confirmed that means the owner
+      // accepted a short or over payment (within 10%), so record what arrived.
+      if (data.receivedAmountSats != null || data.receivedAmount != null) {
+        log(
+          `confirmed, paid (different amount accepted): order=${data.orderId ?? "-"} draft=${data.draftId} ` +
+            `received ${data.receivedAmount ?? "?"} ${data.sentCurrency ?? ""} (${data.receivedAmountSats ?? "?"} base units), ` +
+            `billed ${data.sentAmount ?? "?"} ${data.sentCurrency ?? ""} on ${data.network ?? "?"} tx=${data.txId ?? "-"}`,
+        );
+        return "order_paid";
+      }
       log(
         `confirmed: order=${data.orderId ?? "-"} draft=${data.draftId} ` +
           `${data.sentAmount ?? "?"} ${data.sentCurrency ?? ""} on ${data.network ?? "?"} tx=${data.txId ?? "-"}`,
@@ -45,7 +58,9 @@ export function handleEvent(payload, log = console.log) {
     case "draft.seen":
       // A payment was seen but is not confirmed yet. Also sent with
       // acceptedByOwner: true when the owner accepts a payment with a different
-      // amount. Wait for draft.confirmed before marking the order paid.
+      // amount. In both cases draft.confirmed follows once the transfer has the
+      // required confirmations, so do not mark the order paid here. Mark it paid
+      // on draft.confirmed only.
       log(
         `seen: order=${data.orderId ?? "-"} draft=${data.draftId} tx=${data.txId ?? "-"}` +
           (data.acceptedByOwner === true ? " (different amount accepted by owner)" : ""),

@@ -4,7 +4,7 @@ send21 is non-custodial software that prepares payment instructions, payment dra
 
 **Agent proposes, human signs.**
 
-- Testnet demo, no account and no email: https://send21.io/demo
+- Testnet demo, no account and no email: https://send21.io/demo (on send21.io the test networks are for this demo only; account drafts and API keys use the live networks)
 - API docs: https://send21.io/swagger
 - Webhook guide (events, example payloads, delivery headers, retries, signature check): the Webhooks section at https://send21.io/swagger
 - MCP server (Streamable HTTP): https://send21.io/mcp
@@ -30,7 +30,7 @@ send21 is non-custodial software that prepares payment instructions, payment dra
 - Wrapped BTC on Solana and Ethereum.
 - Prices in 165 fiat currencies.
 
-The testnet demo covers Bitcoin, Solana, Ethereum, Base, Arbitrum and Polygon test networks.
+The testnet demo covers Bitcoin, Solana, Ethereum, Base, Arbitrum and Polygon test networks. On send21.io the test networks are reserved for the demo, so drafts made with your own API key use the live networks.
 
 ## Setup
 
@@ -41,6 +41,8 @@ cp .env.example .env
 ```
 
 Calls that create something need an API key. The account owner creates scoped keys at https://send21.io/api-keys. `tools/list` and `get_fee_schedule` on the MCP server work without a key.
+
+Testing with your own key: use the live networks and create a small draft to your own address. A draft moves no money until someone signs it, so nothing moves while you integrate. Cancel it when you are done.
 
 ## mcp-payment-request
 
@@ -127,6 +129,7 @@ cd examples/webhook-receiver
 npm test                                  # unit and HTTP tests, no network needed
 npm start                                 # listens on http://localhost:3000/webhooks/send21
 npm run send-sample -- draft.confirmed    # in a second terminal, posts a locally signed sample
+npm run send-sample -- draft.confirmed-accepted
 npm run send-sample -- draft.amount_mismatch
 npm run send-sample -- test
 ```
@@ -149,14 +152,14 @@ The receiver:
 
 - verifies the signature over the exact bytes received, with a constant-time compare, and answers 401 if it does not match (a missing or malformed header returns 401, it does not throw),
 - answers 200 without handling the event again when it has already handled that `X-Send21-Delivery` id (kept in memory here, use your database in production),
-- on `draft.confirmed`, logs the order id, amount, currency, network and txid. This is where you mark the order paid,
+- on `draft.confirmed`, logs the order id, amount, currency, network and txid. This is the only place where you mark the order paid. When `receivedAmountSats` or `receivedAmount` is present, the owner accepted a different amount, and it logs `paid (different amount accepted)` with the received and billed amounts,
 - on `draft.amount_mismatch`, logs the received and billed amounts, flags the payment for review and does not mark it paid. The receiver decides: accept it as paid in the send21 app or with `POST /api/v1/drafts/{id}/accept-received`,
-- on `draft.seen`, logs it and waits for `draft.confirmed`. It is also sent with `acceptedByOwner: true` when the owner accepts a payment with a different amount,
+- on `draft.seen`, logs it and does not mark the order paid. It is also sent with `acceptedByOwner: true` when the owner accepts a payment with a different amount. In both cases `draft.confirmed` follows once the transfer has the required confirmations,
 - answers 200 for `test` and ignores the other events (`draft.created`, `draft.expired`, `draft.cancelled`).
 
 Keep your handler idempotent by keying your records on `draftId` and `orderId`, answer fast and do slow work after replying, and never move an order backwards when an older event arrives late.
 
-The `draft.amount_mismatch` sample in [samples.js](examples/webhook-receiver/samples.js) is the example payload from the webhook guide, byte for byte. Amounts ending in `Sats` are base units of the sent asset: 8 decimals for BTC, 6 for USDC, USDT and EURC, 9 for SOL and ETH (gwei).
+The `draft.amount_mismatch` sample in [samples.js](examples/webhook-receiver/samples.js) is the example payload from the webhook guide, byte for byte. The `draft.confirmed-accepted` sample is derived from the docs, not copied from them: the guide says `receivedAmountSats` and `receivedAmount` are set on the `draft.confirmed` of an accepted short or over payment, so it is a normal `draft.confirmed` with those two fields added. Amounts ending in `Sats` are base units of the sent asset: 8 decimals for BTC, 6 for USDC, USDT and EURC, 9 for SOL and ETH (gwei).
 
 ## What send21 does not do
 

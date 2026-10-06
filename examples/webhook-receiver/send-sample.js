@@ -2,7 +2,9 @@
 // It sets the same headers as a send21 delivery: X-Send21-Event, X-Send21-Delivery
 // and X-Send21-Signature. To get a real signed delivery from send21 instead, call
 // POST /api/v1/webhooks/{id}/test.
-// Usage: node send-sample.js [draft.confirmed|draft.amount_mismatch|test]
+// Usage: node send-sample.js [draft.confirmed|draft.confirmed-accepted|draft.amount_mismatch|test]
+// draft.confirmed-accepted is a draft.confirmed after the owner accepted a
+// different amount; the event type sent is draft.confirmed.
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { samples } from "./samples.js";
@@ -32,7 +34,7 @@ const res = await fetch(url, {
   method: "POST",
   headers: {
     "content-type": "application/json",
-    "x-send21-event": event,
+    "x-send21-event": JSON.parse(body).event,
     "x-send21-delivery": randomUUID(),
     "x-send21-signature": sign(body, secret),
   },

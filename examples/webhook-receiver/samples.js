@@ -4,7 +4,13 @@
 // https://send21.io/swagger, byte for byte. draft.confirmed uses the same field
 // list (the docs say draft.seen and draft.confirmed carry the same fields, and
 // receivedAmountSats and receivedAmount are set only when the amount differs),
-// with the exact billed amount received. The test event has the documented
+// with the exact billed amount received.
+//
+// draft.confirmed after an accepted different amount is DERIVED FROM THE DOCS,
+// not a documented example payload. The Webhooks section says receivedAmountSats
+// and receivedAmount are set "including on the draft.confirmed of an accepted
+// short or over payment", so this sample is the documented mismatch example with
+// a confirmed status and both received amounts kept. The test event has the documented
 // data fields, message and occurredAt (the message text here is a placeholder).
 //
 // Amounts ending in Sats are base units of the sent asset: 8 decimals for BTC,
@@ -67,6 +73,17 @@ export const confirmedBody = JSON.stringify({
   },
 });
 
+// Derived from the docs, see the note at the top of this file.
+export const confirmedAcceptedBody = JSON.stringify({
+  event: "draft.confirmed",
+  data: {
+    ...JSON.parse(confirmedBody).data,
+    receivedAmountSats: 49250000,
+    receivedAmount: "49.250000",
+    occurredAt: "2026-10-06T08:40:00Z",
+  },
+});
+
 export const testBody = JSON.stringify({
   event: "test",
   data: { message: "Test event", occurredAt: "2026-10-06T08:30:00Z" },
@@ -75,6 +92,7 @@ export const testBody = JSON.stringify({
 /** Raw bodies by event type. */
 export const samples = {
   "draft.confirmed": confirmedBody,
+  "draft.confirmed-accepted": confirmedAcceptedBody,
   "draft.amount_mismatch": amountMismatchBody,
   test: testBody,
 };
