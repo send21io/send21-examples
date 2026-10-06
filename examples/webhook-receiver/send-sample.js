@@ -1,6 +1,11 @@
 // Send a locally signed sample event to the running receiver, for manual testing.
-// Usage: node send-sample.js [draft.confirmed|draft.amount_mismatch]
+// It sets the same headers as a send21 delivery: X-Send21-Event, X-Send21-Delivery
+// and X-Send21-Signature. To get a real signed delivery from send21 instead, call
+// POST /api/v1/webhooks/{id}/test.
+// Usage: node send-sample.js [draft.confirmed|draft.amount_mismatch|test]
+import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
+import { samples } from "./samples.js";
 import { sign } from "./verify.js";
 
 try {
@@ -17,40 +22,20 @@ if (!secret) {
 const url = `http://localhost:${process.env.PORT ?? 3000}/webhooks/send21`;
 const event = process.argv[2] ?? "draft.confirmed";
 
-// Field names follow the documented draft.confirmed example. The amount_mismatch
-// sample only carries ids because its payload fields are not documented yet.
-const samples = {
-  "draft.confirmed": {
-    event: "draft.confirmed",
-    data: {
-      draftId: "00000000-0000-0000-0000-000000000001",
-      status: "Confirmed",
-      txId: "example-txid",
-      confirmations: 1,
-      sentCurrency: "USDC",
-      network: "Solana",
-      sentAmount: "53.870000",
-      fiatCurrency: "EUR",
-      fiatAmount: 49.9,
-      conversionRate: 0.9263,
-      rateSource: "coinbase",
-      orderId: "shop-order-1042",
-    },
-  },
-  "draft.amount_mismatch": {
-    event: "draft.amount_mismatch",
-    data: { draftId: "00000000-0000-0000-0000-000000000002", orderId: "shop-order-1043" },
-  },
-};
-if (!samples[event]) {
+const body = samples[event];
+if (!body) {
   console.error(`Unknown sample ${event}. Use one of: ${Object.keys(samples).join(", ")}`);
   process.exit(1);
 }
 
-const body = JSON.stringify(samples[event]);
 const res = await fetch(url, {
   method: "POST",
-  headers: { "content-type": "application/json", "x-send21-signature": sign(body, secret) },
+  headers: {
+    "content-type": "application/json",
+    "x-send21-event": event,
+    "x-send21-delivery": randomUUID(),
+    "x-send21-signature": sign(body, secret),
+  },
   body,
 });
 console.log(res.status, await res.text());

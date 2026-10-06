@@ -2,7 +2,7 @@
   "name": "send21-webhook-receiver",
   "version": "1.0.0",
   "private": true,
-  "description": "Verify send21 webhook signatures and handle draft.confirmed and draft.amount_mismatch.",
+  "description": "Verify send21 webhook signatures, ignore repeated deliveries and handle draft.confirmed and draft.amount_mismatch.",
   "type": "module",
   "license": "MIT",
   "engines": {

@@ -1,11 +1,12 @@
 # send21 examples
 
-send21 is non-custodial software that prepares payment instructions, payment drafts and pay links, for BTC, USDC, USDT and EURC. An agent or app creates them through the REST API or the MCP server, and a human signs the payment in their own wallet. send21 never holds keys or funds, never signs and never broadcasts.
+send21 is non-custodial software that prepares payment instructions, payment drafts and pay links, for BTC (on-chain and over Lightning), USDC, USDT, EURC, SOL and ETH. An agent or app creates them through the REST API or the MCP server, and a human signs the payment in their own wallet. send21 never holds keys or funds, never signs and never broadcasts.
 
 **Agent proposes, human signs.**
 
 - Testnet demo, no account and no email: https://send21.io/demo
 - API docs: https://send21.io/swagger
+- Webhook guide (events, example payloads, delivery headers, retries, signature check): the Webhooks section at https://send21.io/swagger
 - MCP server (Streamable HTTP): https://send21.io/mcp
 - Machine-readable overview: https://send21.io/llms.txt
 - Fees: https://send21.io/pricing
@@ -15,7 +16,21 @@ send21 is non-custodial software that prepares payment instructions, payment dra
 | Folder | What it does |
 |---|---|
 | [examples/mcp-payment-request](examples/mcp-payment-request) | An agent-side TypeScript script that connects to the send21 MCP server and creates a payment request (pay link) for an amount and fiat currency, then prints the link. Includes MCP client config for Cursor and Claude Desktop. |
-| [examples/webhook-receiver](examples/webhook-receiver) | A small Node.js server with no dependencies that verifies the `X-Send21-Signature` HMAC and handles `draft.confirmed` and `draft.amount_mismatch`. Comes with tests. |
+| [examples/webhook-receiver](examples/webhook-receiver) | A small Node.js server with no dependencies that verifies the `X-Send21-Signature` HMAC, ignores repeated deliveries by `X-Send21-Delivery` and handles `draft.confirmed` and `draft.amount_mismatch`. Comes with tests that use the documented example payload. |
+
+## Supported currencies and networks
+
+- BTC on Bitcoin, on-chain.
+- BTC over Lightning, paid to the receiver's own Lightning address (like name@wallet.com). send21 fetches an invoice for the exact amount and confirms the payment automatically when the receiver's wallet provider supports LUD-21.
+- USDC on Solana, Ethereum, Base, Arbitrum and Polygon. On Arbitrum and Polygon only native USDC, not the bridged USDC.e.
+- USDT on Solana and Ethereum.
+- EURC on Solana, Ethereum and Base.
+- SOL, native, on Solana.
+- ETH, native, on Ethereum, Base and Arbitrum.
+- Wrapped BTC on Solana and Ethereum.
+- Prices in 165 fiat currencies.
+
+The testnet demo covers Bitcoin, Solana, Ethereum, Base, Arbitrum and Polygon test networks.
 
 ## Setup
 
@@ -41,10 +56,32 @@ npm run dry-run -- 25 EUR --option Usdc:Solana:<your-solana-address>
 npm start -- 25 EUR \
   --option Usdc:Solana:<your-solana-address> \
   --option Eurc:Base:<your-base-address> \
+  --option Eth:Base:<your-base-address> \
+  --option Btc:Mainnet:name@wallet.com:Lightning \
   --memo "Invoice 1042" --order-id inv-1042
 ```
 
-Each `--option` is `Currency:Network:Address`, where the address is your own receiving address. Currencies are `Btc`, `Usdc`, `Usdt` and `Eurc`. Networks for payment requests are `Mainnet` (Bitcoin), `Solana`, `Ethereum` and `Base`. USDC and EURC are on Solana, Ethereum and Base. USDT is on Solana and Ethereum.
+Each `--option` is `Currency:Network:Address[:Method]`, using the values from the live `create_payment_request` schema:
+
+- `Currency`: `Btc`, `Usdc`, `Usdt`, `Eurc`, `Sol` or `Eth`.
+- `Network`: `Mainnet` (Bitcoin), `Solana`, `Ethereum`, `Base`, `Arbitrum` or `Polygon`.
+- `Address`: your own receiving address. For Lightning, your Lightning address (like name@wallet.com).
+- `Method` (optional): `MultiOutput` (on-chain, the default) or `Lightning` (only for `Btc` on `Mainnet`).
+
+More examples:
+
+| Option | Payer pays with |
+|---|---|
+| `Btc:Mainnet:<your-bitcoin-address>` | BTC on-chain |
+| `Btc:Mainnet:name@wallet.com:Lightning` | BTC over Lightning, to your Lightning address |
+| `Sol:Solana:<your-solana-address>` | SOL on Solana |
+| `Eth:Ethereum:<your-ethereum-address>` | ETH on Ethereum |
+| `Eth:Base:<your-base-address>` | ETH on Base |
+| `Eth:Arbitrum:<your-arbitrum-address>` | ETH on Arbitrum |
+| `Usdc:Arbitrum:<your-arbitrum-address>` | native USDC on Arbitrum |
+| `Usdc:Polygon:<your-polygon-address>` | native USDC on Polygon |
+
+Use only the combinations in the list of supported currencies and networks above. The dry run checks your arguments against the live schema without creating anything.
 
 The script prints a pay link like `https://send21.io/pay/...`. The payer opens it, picks a currency (the exchange rate locks at that point), scans one QR code and signs in their own wallet. The funds go straight from the payer's wallet to your address. The script passes an idempotency key, so a retry with the same key returns the original request.
 
@@ -91,23 +128,43 @@ npm test                                  # unit and HTTP tests, no network need
 npm start                                 # listens on http://localhost:3000/webhooks/send21
 npm run send-sample -- draft.confirmed    # in a second terminal, posts a locally signed sample
 npm run send-sample -- draft.amount_mismatch
+npm run send-sample -- test
 ```
 
-Register the endpoint at https://send21.io/webhooks, or with `POST /api/v1/webhooks` and a key with the `webhooks:manage` scope. The webhook secret is shown once when you create the endpoint. Put it in `SEND21_WEBHOOK_SECRET`.
+Register the endpoint at https://send21.io/webhooks, or with `POST /api/v1/webhooks` and a key with the `webhooks:manage` scope. The signing secret is returned once when you create the endpoint. Put it in `SEND21_WEBHOOK_SECRET`.
 
-Every delivery carries `X-Send21-Signature: sha256=<hex>`, the HMAC-SHA256 of the raw request body keyed with your webhook secret. The receiver:
+For a real signed delivery from send21, call `POST /api/v1/webhooks/{id}/test`. The delivery carries the `test` event.
 
-- verifies the signature over the exact bytes received, with a constant-time compare, and answers 401 if it does not match,
+The full webhook guide is in the Webhooks section at https://send21.io/swagger. Each delivery is a `POST` with `Content-Type: application/json`, a body of `{"event": "<type>", "data": {...}}` and these headers:
+
+| Header | Meaning |
+|---|---|
+| `X-Send21-Event` | The event type, same as `event` in the body. |
+| `X-Send21-Delivery` | Unique delivery id. Retries reuse it. |
+| `X-Send21-Signature` | `sha256=` followed by the lowercase hex HMAC-SHA256 of the raw body, keyed with your signing secret. |
+
+Any 2xx response counts as delivered. Anything else, or no answer within 15 seconds, is retried after 1, 2, 4, 8 minutes and so on, up to 8 attempts. Deliveries can arrive out of order. The guide defines no timestamp header, so there is no timestamp window to check. Repeated deliveries are recognized by `X-Send21-Delivery`.
+
+The receiver:
+
+- verifies the signature over the exact bytes received, with a constant-time compare, and answers 401 if it does not match (a missing or malformed header returns 401, it does not throw),
+- answers 200 without handling the event again when it has already handled that `X-Send21-Delivery` id (kept in memory here, use your database in production),
 - on `draft.confirmed`, logs the order id, amount, currency, network and txid. This is where you mark the order paid,
-- on `draft.amount_mismatch`, flags the payment for review and does not mark it paid. The receiver decides: accept it as paid in the send21 app or with `POST /api/v1/drafts/{id}/accept-received`,
-- answers 200 and ignores other events (`draft.created`, `draft.seen`, `draft.expired`, `draft.cancelled`).
+- on `draft.amount_mismatch`, logs the received and billed amounts, flags the payment for review and does not mark it paid. The receiver decides: accept it as paid in the send21 app or with `POST /api/v1/drafts/{id}/accept-received`,
+- on `draft.seen`, logs it and waits for `draft.confirmed`. It is also sent with `acceptedByOwner: true` when the owner accepts a payment with a different amount,
+- answers 200 for `test` and ignores the other events (`draft.created`, `draft.expired`, `draft.cancelled`).
 
-Keep your handler idempotent by keying your records on `draftId` and `orderId`. The payload fields for `draft.amount_mismatch` are not documented yet, so this example logs the whole `data` object.
+Keep your handler idempotent by keying your records on `draftId` and `orderId`, answer fast and do slow work after replying, and never move an order backwards when an older event arrives late.
+
+The `draft.amount_mismatch` sample in [samples.js](examples/webhook-receiver/samples.js) is the example payload from the webhook guide, byte for byte. Amounts ending in `Sats` are base units of the sent asset: 8 decimals for BTC, 6 for USDC, USDT and EURC, 9 for SOL and ETH (gwei).
 
 ## What send21 does not do
 
 - Agents cannot sign or pay on their own through send21. A human or the operator's own wallet signs. send21 is not an agent wallet.
-- No automatic Lightning confirmation. BTC on Lightning works only as a receiver-supplied invoice.
+- Lightning payments are confirmed automatically only when the receiver's wallet provider supports LUD-21. A pasted invoice is never confirmed automatically.
+- No USDT on Tron, Arbitrum or Polygon, and nothing on BNB Chain. No ETH on Polygon.
+- On Base and Arbitrum, several ETH payments to the same address at the same time may not be told apart. Keep one open ETH payment per address there.
+- No app in the Shopify App Store. A merchant connects a store with their own custom Shopify app.
 - A payment with a different amount is not confirmed automatically. The receiver decides. Transfers more than 10% off, or ones that could belong to several open payments, are not flagged.
 - No payouts to bank accounts and no conversion to fiat.
 

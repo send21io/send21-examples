@@ -4,10 +4,11 @@
 // or funds, never signs and never broadcasts.
 //
 // Usage:
-//   npm start -- <amount> <fiatCurrency> [--option Currency:Network:Address]... [--memo text] [--order-id id] [--dry-run]
+//   npm start -- <amount> <fiatCurrency> [--option Currency:Network:Address[:Method]]... [--memo text] [--order-id id] [--dry-run]
 //
-// Example:
+// Examples:
 //   npm start -- 25 EUR --option Usdc:Solana:<your-solana-address> --memo "Invoice 1042"
+//   npm start -- 25 EUR --option Eth:Base:<your-base-address> --option Btc:Mainnet:name@wallet.com:Lightning
 
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
@@ -25,22 +26,36 @@ const MCP_URL = process.env.SEND21_MCP_URL ?? "https://send21.io/mcp";
 const SITE_URL = "https://send21.io";
 const TOOL = "create_payment_request";
 
-type PayOption = { currency: string; network: string; address: string };
+// Values for the method field of an option, as described in the live
+// create_payment_request schema. Without a method the option is on-chain.
+const METHODS = ["MultiOutput", "Lightning"];
+
+type PayOption = { currency: string; network: string; address: string; method?: string };
 
 function usage(message?: string): never {
   if (message) console.error(`Error: ${message}\n`);
   console.error(
-    "Usage: npm start -- <amount> <fiatCurrency> [--option Currency:Network:Address]... [--memo text] [--order-id id] [--dry-run]\n" +
-      "Options can also come from SEND21_PAY_OPTIONS (comma separated, same Currency:Network:Address format).",
+    "Usage: npm start -- <amount> <fiatCurrency> [--option Currency:Network:Address[:Method]]... [--memo text] [--order-id id] [--dry-run]\n\n" +
+      "  Currency: Btc, Usdc, Usdt, Eurc, Sol or Eth\n" +
+      "  Network:  Mainnet (Bitcoin), Solana, Ethereum, Base, Arbitrum or Polygon\n" +
+      "  Address:  your own receiving address, or your Lightning address (name@wallet.com) for Lightning\n" +
+      "  Method:   optional, MultiOutput (on-chain, the default) or Lightning (Btc on Mainnet only)\n\n" +
+      "Examples:\n" +
+      "  --option Usdc:Solana:<your-solana-address>\n" +
+      "  --option Eth:Base:<your-base-address>\n" +
+      "  --option Usdc:Arbitrum:<your-arbitrum-address>\n" +
+      "  --option Btc:Mainnet:name@wallet.com:Lightning\n\n" +
+      "Options can also come from SEND21_PAY_OPTIONS (comma separated, same format).",
   );
   process.exit(1);
 }
 
 function parseOption(raw: string): PayOption {
   const [currency, network, ...rest] = raw.trim().split(":");
+  const method = rest.length > 1 && METHODS.includes(rest[rest.length - 1]) ? rest.pop() : undefined;
   const address = rest.join(":");
-  if (!currency || !network || !address) usage(`bad option "${raw}", expected Currency:Network:Address`);
-  return { currency, network, address };
+  if (!currency || !network || !address) usage(`bad option "${raw}", expected Currency:Network:Address[:Method]`);
+  return method ? { currency, network, address, method } : { currency, network, address };
 }
 
 function parseArgs(argv: string[]) {
@@ -65,7 +80,7 @@ function parseArgs(argv: string[]) {
   const fiatAmount = Number(amountRaw);
   if (!amountRaw || !Number.isFinite(fiatAmount) || fiatAmount <= 0) usage("amount must be a positive number");
   if (!fiatRaw || !/^[A-Za-z]{3}$/.test(fiatRaw)) usage("fiatCurrency must be a 3 letter ISO 4217 code, e.g. EUR");
-  if (options.length === 0) usage("give at least one --option Currency:Network:Address (your own receiving address)");
+  if (options.length === 0) usage("give at least one --option Currency:Network:Address[:Method] (your own receiving address)");
   return { fiatAmount, fiatCurrency: fiatRaw.toUpperCase(), options, memo, orderId, dryRun };
 }
 
