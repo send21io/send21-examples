@@ -161,6 +161,10 @@ Keep your handler idempotent by keying your records on `draftId` and `orderId`, 
 
 The `draft.amount_mismatch` sample in [samples.js](examples/webhook-receiver/samples.js) is the example payload from the webhook guide, byte for byte. The `draft.confirmed-accepted` sample is derived from the docs, not copied from them: the guide says `receivedAmountSats` and `receivedAmount` are set on the `draft.confirmed` of an accepted short or over payment, so it is a normal `draft.confirmed` with those two fields added. Amounts ending in `Sats` are base units of the sent asset: 8 decimals for BTC, 6 for USDC, USDT and EURC, 9 for SOL and ETH (gwei).
 
+## Third-party examples
+
+- [PriorSeal: send21 payment draft binding](https://github.com/imokokok/PriorSeal/tree/main/examples/send21-payment-draft-binding-v1), built by the PriorSeal team. It hashes a send21 draft (JCS + SHA-256) into a signed authorization receipt, so a reviewer can follow draft, then payer signature, then on-chain payment as one checkable chain. Base Sepolia testnet only. Independent project, not maintained by send21.
+
 ## What send21 does not do
 
 - Agents cannot sign or pay on their own through send21. A human or the operator's own wallet signs. send21 is not an agent wallet.
