@@ -1,3 +1,5 @@
+<p align="center"><img src="https://raw.githubusercontent.com/send21io/send21io/main/assets/social-1280x640.png" alt="send21" width="640"></p>
+
 # send21 examples
 
 send21 is non-custodial software that prepares payment instructions, payment drafts and pay links, for BTC (on-chain and over Lightning), USDC, USDT, EURC, SOL and ETH. An agent or app creates them through the REST API or the MCP server, and a human signs the payment in their own wallet. send21 never holds keys or funds, never signs and never broadcasts.
