@@ -66,11 +66,44 @@ export function handleEvent(payload, log = console.log) {
           (data.acceptedByOwner === true ? " (different amount accepted by owner)" : ""),
       );
       return "payment_seen";
+    case "draft.mismatch_accepted":
+      // A payment with a different amount was accepted: by the owner (with
+      // acceptReason) or by the draft's shortfallPolicy (acceptReason
+      // "auto: shortfallPolicy"). Record the reason. Mark the order paid on the
+      // draft.confirmed that follows, not here.
+      log(
+        `mismatch accepted: order=${data.orderId ?? "-"} draft=${data.draftId} ` +
+          `received ${data.receivedAmount ?? "?"}, billed ${data.sentAmount ?? "?"} ${data.sentCurrency ?? ""} reason=${data.acceptReason ?? "-"}`,
+      );
+      return "mismatch_accepted";
+    case "draft.mismatch_rejected":
+      // The owner declined the different amount, with rejectReason. The money is
+      // already in the owner's wallet (refund: "manual"); send21 does not refund.
+      // Do not mark the order paid.
+      log(
+        `mismatch rejected: order=${data.orderId ?? "-"} draft=${data.draftId} ` +
+          `reason=${data.rejectReason ?? "-"} refund=${data.refund ?? "manual"}`,
+      );
+      return "mismatch_rejected";
+    case "draft.mismatch_reminder":
+      // Still undecided 2 hours before the draft expires. Sent once. Nudge a human.
+      log(`mismatch still undecided, draft expires soon: order=${data.orderId ?? "-"} draft=${data.draftId}`);
+      return "needs_review";
+    case "draft.mismatch_unresolved":
+      // The draft expired (or was cancelled) while the transfer was undecided.
+      // Money arrived and nobody decided. It can still be accepted, so keep it
+      // on the review list. Do not mark the order paid.
+      log(
+        `mismatch unresolved, money arrived: order=${data.orderId ?? "-"} draft=${data.draftId} ` +
+          `received ${data.receivedAmount ?? "?"} ${data.sentCurrency ?? ""}`,
+      );
+      return "needs_review";
     case "test":
       log(`test event: ${data.message ?? ""}`);
       return "test";
     default:
-      // draft.created, draft.expired, draft.cancelled and any future event.
+      // draft.created, draft.expired, draft.cancelled, payment_request.expired
+      // and any future event.
       log(`ignored event ${payload.event}`);
       return "ignored";
   }

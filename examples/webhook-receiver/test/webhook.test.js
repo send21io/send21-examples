@@ -185,3 +185,16 @@ test("HTTP server verifies signatures, handles events and ignores repeated deliv
   res = await fetch(url.replace("/webhooks/send21", "/other"), { method: "POST", body: "{}" });
   assert.equal(res.status, 404);
 });
+
+test("handleEvent never marks the order paid on the amount review events", () => {
+  const lines = [];
+  const log = (l) => lines.push(l);
+  const data = { draftId: "d1", orderId: "o1", receivedAmount: "9.5", sentAmount: "10", sentCurrency: "USDT" };
+  assert.equal(handleEvent({ event: "draft.mismatch_accepted", data: { ...data, acceptReason: "auto: shortfallPolicy" } }, log), "mismatch_accepted");
+  assert.equal(handleEvent({ event: "draft.mismatch_rejected", data: { ...data, rejectReason: "wrong order", refund: "manual" } }, log), "mismatch_rejected");
+  assert.equal(handleEvent({ event: "draft.mismatch_reminder", data }, log), "needs_review");
+  assert.equal(handleEvent({ event: "draft.mismatch_unresolved", data }, log), "needs_review");
+  assert.match(lines[0], /reason=auto: shortfallPolicy/);
+  assert.match(lines[1], /refund=manual/);
+  assert.match(lines[3], /unresolved/);
+});

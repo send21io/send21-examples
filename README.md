@@ -18,7 +18,7 @@ send21 is non-custodial software that prepares payment instructions, payment dra
 | Folder | What it does |
 |---|---|
 | [examples/mcp-payment-request](examples/mcp-payment-request) | An agent-side TypeScript script that connects to the send21 MCP server and creates a payment request (pay link) for an amount and fiat currency, then prints the link. Includes MCP client config for Cursor and Claude Desktop. |
-| [examples/webhook-receiver](examples/webhook-receiver) | A small Node.js server with no dependencies that verifies the `X-Send21-Signature` HMAC, ignores repeated deliveries by `X-Send21-Delivery` and handles `draft.confirmed` and `draft.amount_mismatch`. Comes with tests that use the documented example payload. |
+| [examples/webhook-receiver](examples/webhook-receiver) | A small Node.js server with no dependencies that verifies the `X-Send21-Signature` HMAC, ignores repeated deliveries by `X-Send21-Delivery` and handles `draft.confirmed`, `draft.amount_mismatch` and the review events `draft.mismatch_accepted`, `draft.mismatch_rejected`, `draft.mismatch_reminder` and `draft.mismatch_unresolved`. Comes with tests that use the documented example payload. |
 
 ## Supported currencies and networks
 
@@ -157,7 +157,10 @@ The receiver:
 - on `draft.confirmed`, logs the order id, amount, currency, network and txid. This is the only place where you mark the order paid. When `receivedAmountSats` or `receivedAmount` is present, the owner accepted a different amount, and it logs `paid (different amount accepted)` with the received and billed amounts,
 - on `draft.amount_mismatch`, logs the received and billed amounts, flags the payment for review and does not mark it paid. The receiver decides: accept it as paid in the send21 app or with `POST /api/v1/drafts/{id}/accept-received`,
 - on `draft.seen`, logs it and does not mark the order paid. It is also sent with `acceptedByOwner: true` when the owner accepts a payment with a different amount. In both cases `draft.confirmed` follows once the transfer has the required confirmations,
-- answers 200 for `test` and ignores the other events (`draft.created`, `draft.expired`, `draft.cancelled`).
+- on `draft.mismatch_accepted`, logs the `acceptReason` (set by the receiver, or `auto: shortfallPolicy`); the order is marked paid on the `draft.confirmed` that follows,
+- on `draft.mismatch_rejected`, logs the `rejectReason` and does not mark the order paid. The money is already in the receiver's wallet (`refund: "manual"`); send21 never holds or returns funds,
+- on `draft.mismatch_reminder` (still undecided 2 hours before expiry) and `draft.mismatch_unresolved` (the draft expired or was cancelled while the transfer was undecided: money arrived, nobody decided, it can still be accepted), keeps the payment on the review list,
+- answers 200 for `test` and ignores the other events (`draft.created`, `draft.expired`, `draft.cancelled`, `payment_request.expired`).
 
 Keep your handler idempotent by keying your records on `draftId` and `orderId`, answer fast and do slow work after replying, and never move an order backwards when an older event arrives late.
 
