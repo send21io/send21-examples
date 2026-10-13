@@ -4,7 +4,7 @@ An importable n8n workflow, [`send21-pay-link-workflow.json`](send21-pay-link-wo
 
 1. **Register webhook (run once):** `POST /api/v1/webhooks` with your n8n webhook URL and the events `draft.confirmed`, `draft.amount_mismatch` and `payment_request.expired`.
 2. **Create pay link:** `POST /api/v1/payment-requests` with an `Idempotency-Key` header, then builds the pay link `https://send21.io` + `payPath`.
-3. **Webhook receiver:** receives send21 deliveries, verifies `X-Send21-Signature` (HMAC-SHA256 of the raw body), answers 401 on a bad signature and 200 otherwise, then routes `draft.confirmed` to "Mark order paid" and `draft.amount_mismatch` to "Flag for review".
+3. **Webhook receiver:** receives send21 deliveries, verifies `X-Send21-Signature-V2` (`t=<timestamp>,v1=<hex HMAC-SHA256 of "<timestamp>.<delivery id>.<raw body>">`, refusing deliveries older than 5 minutes), falls back to the v1 `X-Send21-Signature` (HMAC-SHA256 of the raw body) only when no V2 header is present, answers 401 on a bad signature and 200 otherwise, then routes `draft.confirmed` to "Mark order paid" and `draft.amount_mismatch` to "Flag for review".
 
 send21 prepares payment instructions. The payer opens the pay link and signs in their own wallet; send21 never holds keys or funds, never signs and never broadcasts.
 
@@ -27,6 +27,7 @@ When the payer signs and the payment reaches its confirmations, send21 posts `dr
 ## Notes
 
 - Options use the live schema values: currency `Btc`, `Usdc`, `Usdt`, `Eurc`, `Sol` or `Eth`; network `Mainnet` (Bitcoin), `Solana`, `Ethereum`, `Base`, `Arbitrum` or `Polygon`; add `"method": "Lightning"` for BTC to a Lightning address. Use only the [supported combinations](../README.md#supported-currencies-and-networks): USDT only on Solana and Ethereum, no ETH on Polygon, nothing on BNB Chain or Tron.
+- An `Idempotency-Key` reused with a different amount, currency or address is refused with 422 and nothing is created, so use a new key for each new payment and reuse a key only to retry the exact same request.
 - `reuseOpenForOrder: true` returns the open link for the same `orderId` instead of creating a second one, so re-running the workflow is safe.
 - `draft.amount_mismatch` is not a payment: a transfer with a different amount waits until you accept it (`POST /api/v1/drafts/{id}/accept-received`) or decline it (`POST /api/v1/drafts/{id}/reject-received`).
 - Deliveries are retried (up to 8 attempts) and can arrive out of order. Skip an `X-Send21-Delivery` id you already handled and key records on `draftId` and `orderId`.

@@ -97,7 +97,7 @@ More examples:
 
 Use only the combinations in the list of supported currencies and networks above. The dry run checks your arguments against the live schema without creating anything.
 
-The script prints a pay link like `https://send21.io/pay/...`. The payer opens it, picks a currency (the exchange rate locks at that point), scans one QR code and signs in their own wallet. The funds go straight from the payer's wallet to your address. The script passes an idempotency key, so a retry with the same key returns the original request.
+The script prints a pay link like `https://send21.io/pay/...`. The payer opens it, picks a currency (the exchange rate locks at that point), scans one QR code and signs in their own wallet. The funds go straight from the payer's wallet to your address. The script passes an idempotency key, so a retry with the same key returns the original request. An `Idempotency-Key` reused with a different amount, currency or address is refused with 422 and nothing is created, so use a new key for each new payment and reuse a key only to retry the exact same request.
 
 ### Add the send21 MCP server to your client
 
@@ -156,9 +156,11 @@ The full webhook guide is in the Webhooks section at https://send21.io/swagger. 
 |---|---|
 | `X-Send21-Event` | The event type, same as `event` in the body. |
 | `X-Send21-Delivery` | Unique delivery id. Retries reuse it. |
-| `X-Send21-Signature` | `sha256=` followed by the lowercase hex HMAC-SHA256 of the raw body, keyed with your signing secret. |
+| `X-Send21-Signature` | v1: `sha256=` followed by the lowercase hex HMAC-SHA256 of the raw body, keyed with your signing secret. |
+| `X-Send21-Timestamp` | When the delivery was sent, in Unix seconds. |
+| `X-Send21-Signature-V2` | Recommended: `t=<timestamp>,v1=<hex HMAC-SHA256 of "<timestamp>.<delivery id>.<raw body>">`. It also signs the time and delivery id, so a copied delivery cannot be replayed. Refuse deliveries older than 5 minutes. |
 
-Any 2xx response counts as delivered. Anything else, or no answer within 15 seconds, is retried after 1, 2, 4, 8 minutes and so on, up to 8 attempts. Deliveries can arrive out of order. The guide defines no timestamp header, so there is no timestamp window to check. Repeated deliveries are recognized by `X-Send21-Delivery`.
+Any 2xx response counts as delivered. Anything else, or no answer within 15 seconds, is retried after 1, 2, 4, 8 minutes and so on, up to 8 attempts. Deliveries can arrive out of order. With `X-Send21-Signature-V2`, refuse deliveries older than 5 minutes. The [n8n template](n8n) verifies V2 with a v1 fallback; this Node.js receiver still checks the v1 header. Repeated deliveries are recognized by `X-Send21-Delivery`.
 
 The receiver:
 

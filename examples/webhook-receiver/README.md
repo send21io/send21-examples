@@ -1,6 +1,6 @@
 # webhook-receiver
 
-A Node.js server with no dependencies that verifies the send21 webhook signature (`X-Send21-Signature: sha256=<lowercase hex>`, HMAC-SHA256 of the raw body), ignores repeated deliveries by `X-Send21-Delivery`, and handles `draft.confirmed`, `draft.amount_mismatch`, `draft.mismatch_accepted`, `draft.mismatch_rejected`, `draft.mismatch_reminder`, `draft.mismatch_unresolved`, `draft.seen` and `test`. It follows the webhook guide in the Webhooks section at https://send21.io/swagger.
+A Node.js server with no dependencies that verifies the send21 webhook signature (`X-Send21-Signature: sha256=<lowercase hex>`, HMAC-SHA256 of the raw body), ignores repeated deliveries by `X-Send21-Delivery`, and handles `draft.confirmed`, `draft.amount_mismatch`, `draft.mismatch_accepted`, `draft.mismatch_rejected`, `draft.mismatch_reminder`, `draft.mismatch_unresolved`, `draft.seen` and `test`. send21 also sends a timestamped `X-Send21-Signature-V2` (`t=<timestamp>,v1=<hex HMAC-SHA256 of "<timestamp>.<delivery id>.<raw body>">`), which is recommended against replayed deliveries; refuse deliveries older than 5 minutes. This receiver still checks v1; see the [n8n template](../../n8n) for a V2 check with v1 fallback. It follows the webhook guide in the Webhooks section at https://send21.io/swagger.
 
 ```sh
 npm test
