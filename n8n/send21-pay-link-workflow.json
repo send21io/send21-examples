@@ -1,0 +1,501 @@
+{
+  "name": "send21: pay link + webhook confirmation",
+  "nodes": [
+    {
+      "parameters": {},
+      "name": "Create pay link (run manually)",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "create-pay-link-(run-manually)"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "{\n  \"orderId\": \"inv-1042\",\n  \"fiatAmount\": 25,\n  \"fiatCurrency\": \"EUR\",\n  \"memo\": \"Invoice 1042\",\n  \"expiryHours\": 24,\n  \"reuseOpenForOrder\": true,\n  \"options\": [\n    {\n      \"currency\": \"Usdc\",\n      \"network\": \"Solana\",\n      \"address\": \"<your-solana-address>\"\n    },\n    {\n      \"currency\": \"Eurc\",\n      \"network\": \"Base\",\n      \"address\": \"<your-base-address>\"\n    }\n  ]\n}"
+      },
+      "name": "Pay link settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        0
+      ],
+      "id": "pay-link-settings"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://send21.io/api/v1/payment-requests",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Idempotency-Key",
+              "value": "={{ $json.orderId }}-1"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "name": "POST /payment-requests",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        0
+      ],
+      "id": "post-/payment-requests",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_ME",
+          "name": "send21 API key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "payLink",
+              "value": "=https://send21.io{{ $json.payPath }}",
+              "type": "string"
+            },
+            {
+              "id": "a2",
+              "name": "paymentRequestId",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "a3",
+              "name": "orderId",
+              "value": "={{ $json.orderId }}",
+              "type": "string"
+            },
+            {
+              "id": "a4",
+              "name": "expiresAt",
+              "value": "={{ $json.expiresAt }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Pay link",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        660,
+        0
+      ],
+      "id": "pay-link"
+    },
+    {
+      "parameters": {},
+      "name": "Register webhook (run once)",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        -260
+      ],
+      "id": "register-webhook-(run-once)"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://send21.io/api/v1/webhooks",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"url\": \"https://<your-n8n-host>/webhook/send21\", \"events\": [\"draft.confirmed\", \"draft.amount_mismatch\", \"payment_request.expired\"]}",
+        "options": {}
+      },
+      "name": "POST /webhooks",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        220,
+        -260
+      ],
+      "id": "post-/webhooks",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_ME",
+          "name": "send21 API key"
+        }
+      },
+      "notes": "Needs a key with the webhooks:manage scope. The response holds the signing secret once: put it in SEND21_WEBHOOK_SECRET."
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "send21",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "name": "send21 webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        300
+      ],
+      "id": "send21-webhook",
+      "webhookId": "send21"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Verify the X-Send21-Signature HMAC over the raw body, then pass the event on.\n// Needs NODE_FUNCTION_ALLOW_BUILTIN=crypto and SEND21_WEBHOOK_SECRET in the n8n environment.\nconst crypto = require('crypto');\nconst secret = $env.SEND21_WEBHOOK_SECRET;\nconst item = $input.first();\nconst headers = item.json.headers || {};\nconst raw = item.binary && item.binary.data\n  ? Buffer.from(item.binary.data.data, 'base64')\n  : Buffer.from(JSON.stringify(item.json.body));\nconst expected = Buffer.from('sha256=' + crypto.createHmac('sha256', secret).update(raw).digest('hex'));\nconst received = Buffer.from(String(headers['x-send21-signature'] || ''));\nconst valid = !!secret && received.length === expected.length && crypto.timingSafeEqual(received, expected);\nconst body = JSON.parse(raw.toString('utf8'));\nreturn [{ json: {\n  valid,\n  event: body.event,\n  deliveryId: headers['x-send21-delivery'] || null,\n  data: body.data || {},\n} }];\n"
+      },
+      "name": "Verify signature",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        300
+      ],
+      "id": "verify-signature"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Signature valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        440,
+        300
+      ],
+      "id": "signature-valid?"
+    },
+    {
+      "parameters": {
+        "respondWith": "noData",
+        "options": {
+          "responseCode": 401
+        }
+      },
+      "name": "Respond 401",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        660,
+        420
+      ],
+      "id": "respond-401"
+    },
+    {
+      "parameters": {
+        "respondWith": "noData",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "name": "Respond 200",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        660,
+        200
+      ],
+      "id": "respond-200"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.event }}",
+                    "rightValue": "draft.confirmed",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "confirmed"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.event }}",
+                    "rightValue": "draft.amount_mismatch",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "amount_mismatch"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "name": "Route by event",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        880,
+        200
+      ],
+      "id": "route-by-event"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "p1",
+              "name": "orderId",
+              "value": "={{ $json.data.orderId }}",
+              "type": "string"
+            },
+            {
+              "id": "p2",
+              "name": "txId",
+              "value": "={{ $json.data.txId }}",
+              "type": "string"
+            },
+            {
+              "id": "p3",
+              "name": "network",
+              "value": "={{ $json.data.network }}",
+              "type": "string"
+            },
+            {
+              "id": "p4",
+              "name": "status",
+              "value": "paid",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Mark order paid",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1100,
+        100
+      ],
+      "id": "mark-order-paid",
+      "notes": "Replace with your shop/CRM update. Key records on draftId and orderId and skip a deliveryId you already handled."
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "r1",
+              "name": "orderId",
+              "value": "={{ $json.data.orderId }}",
+              "type": "string"
+            },
+            {
+              "id": "r2",
+              "name": "draftId",
+              "value": "={{ $json.data.draftId }}",
+              "type": "string"
+            },
+            {
+              "id": "r3",
+              "name": "status",
+              "value": "needs review (different amount, not paid)",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Flag for review",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1100,
+        260
+      ],
+      "id": "flag-for-review"
+    }
+  ],
+  "connections": {
+    "Create pay link (run manually)": {
+      "main": [
+        [
+          {
+            "node": "Pay link settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pay link settings": {
+      "main": [
+        [
+          {
+            "node": "POST /payment-requests",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "POST /payment-requests": {
+      "main": [
+        [
+          {
+            "node": "Pay link",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Register webhook (run once)": {
+      "main": [
+        [
+          {
+            "node": "POST /webhooks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "send21 webhook": {
+      "main": [
+        [
+          {
+            "node": "Verify signature",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify signature": {
+      "main": [
+        [
+          {
+            "node": "Signature valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond 200": {
+      "main": [
+        [
+          {
+            "node": "Route by event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Signature valid?": {
+      "main": [
+        [
+          {
+            "node": "Respond 200",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond 401",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by event": {
+      "main": [
+        [
+          {
+            "node": "Mark order paid",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Flag for review",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}

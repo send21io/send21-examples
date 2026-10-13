@@ -13,6 +13,16 @@ send21 is non-custodial software that prepares payment instructions, payment dra
 - Machine-readable overview: https://send21.io/llms.txt
 - Fees: https://send21.io/pricing
 
+## Templates
+
+Copy-paste setups for common tools:
+
+| Folder | What it is |
+|---|---|
+| [claude-desktop](claude-desktop) | `claude_desktop_config.json` snippet, 3-step quickstart that ends with a working pay link, and a sample prompt. |
+| [cursor](cursor) | `.cursor/mcp.json` snippet, quickstart and a sample prompt. |
+| [n8n](n8n) | Importable workflow: create a pay link with `POST /api/v1/payment-requests`, register a webhook, and receive and verify the `draft.confirmed` confirmation. |
+
 ## Examples
 
 | Folder | What it does |

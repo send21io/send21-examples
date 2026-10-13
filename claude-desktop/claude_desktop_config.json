@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "send21": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote",
+        "https://send21.io/mcp",
+        "--header",
+        "Authorization:${SEND21_AUTH_HEADER}"
+      ],
+      "env": {
+        "SEND21_AUTH_HEADER": "Bearer s21_your_key_here"
+      }
+    }
+  }
+}
