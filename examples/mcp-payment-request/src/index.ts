@@ -134,14 +134,13 @@ async function main() {
     const tool = tools.find((t) => t.name === TOOL);
     if (!tool) throw new Error(`The server does not offer ${TOOL}`);
 
-    // The server lists every argument as required and accepts null for the optional ones.
+    // Only fiatCurrency, fiatAmount and options are required; the rest is optional.
     const toolArgs = {
       fiatCurrency: args.fiatCurrency,
       fiatAmount: args.fiatAmount,
       options: args.options,
       orderId: args.orderId,
       memo: args.memo,
-      expiryHours: null,
       idempotencyKey: randomUUID(), // safe to retry with the same key
     };
 
