@@ -1,0 +1,52 @@
+{
+  "name": "ai-sdk-tool-send21",
+  "version": "0.1.0",
+  "description": "send21 tools for the Vercel AI SDK: prepare non-custodial pay links and check their status. The payer signs in their own wallet.",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "node --test --import tsx test/*.test.ts"
+  },
+  "keywords": [
+    "ai-sdk",
+    "vercel-ai",
+    "tools",
+    "payments",
+    "non-custodial",
+    "send21",
+    "usdc",
+    "bitcoin",
+    "lightning"
+  ],
+  "license": "MIT",
+  "homepage": "https://send21.io",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/send21io/send21-examples.git",
+    "directory": "integrations/vercel-ai-sdk"
+  },
+  "peerDependencies": {
+    "ai": ">=5.0.0",
+    "zod": ">=3.25.0"
+  },
+  "devDependencies": {
+    "ai": "^7.0.0",
+    "zod": "^4.0.0",
+    "typescript": "^5.6.0",
+    "tsx": "^4.19.0",
+    "@types/node": "^20.0.0"
+  },
+  "author": {
+    "name": "send21",
+    "email": "info@send21.io",
+    "url": "https://send21.io"
+  },
+  "bugs": {
+    "email": "info@send21.io"
+  }
+}
