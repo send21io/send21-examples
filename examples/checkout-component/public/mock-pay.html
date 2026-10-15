@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mock pay page (DRY_RUN)</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/demo.css">
+  <script type="module" src="/mock-pay.js"></script>
+</head>
+<body>
+  <header class="top"><span class="logo">send<b>21</b> mock pay page</span><span class="mode">DRY_RUN: nothing is paid</span></header>
+  <main style="grid-template-columns: 1fr">
+    <section class="cart" aria-labelledby="h">
+      <h1 id="h">Pay <span id="amount"></span></h1>
+      <p>This page stands in for the real send21 pay page, where the payer picks an asset, scans one QR code and signs in their own wallet. Here you simulate what send21 would report. Each button sends a webhook signed with <code>X-Send21-Signature-V2</code> to the shop backend.</p>
+      <label for="asset">Asset</label>
+      <select id="asset"></select>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button type="button" data-outcome="confirmed">Simulate confirmed payment</button>
+        <button type="button" data-outcome="seen">Simulate payment seen</button>
+        <button type="button" data-outcome="wrong-amount">Simulate confirmation with a wrong amount</button>
+        <button type="button" data-outcome="wrong-asset">Simulate confirmation in an asset not offered</button>
+        <button type="button" data-outcome="expired">Simulate expiry</button>
+      </div>
+      <p id="out" role="status" aria-live="polite"></p>
+    </section>
+  </main>
+</body>
+</html>

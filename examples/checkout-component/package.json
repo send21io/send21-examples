@@ -1,0 +1,17 @@
+{
+  "name": "send21-checkout-component",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Framework-agnostic webshop checkout for send21 pay links: a <send21-checkout> web component and a minimal Node shop backend",
+  "license": "MIT",
+  "engines": { "node": ">=20.12" },
+  "scripts": {
+    "start": "node server.js",
+    "dry-run": "DRY_RUN=1 node server.js",
+    "test": "node --test test/"
+  },
+  "optionalDependencies": {
+    "qrcode": "^1.5.4"
+  }
+}

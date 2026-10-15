@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Demo shop: pay with crypto via send21</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/demo.css">
+  <script type="module" src="/send21-checkout.js"></script>
+  <script type="module" src="/demo.js"></script>
+</head>
+<body>
+  <header class="top">
+    <span class="logo">Demo<b>Shop</b></span>
+    <span id="mode" class="mode" hidden></span>
+  </header>
+  <main>
+    <section aria-labelledby="products-h">
+      <h1 id="products-h">Products</h1>
+      <ul id="products" class="products"></ul>
+    </section>
+    <aside aria-labelledby="cart-h" class="cart">
+      <h2 id="cart-h">Cart</h2>
+      <ul id="cart-lines"></ul>
+      <p class="total">Total <strong id="cart-total">0.00</strong></p>
+      <button id="pay" type="button" disabled>Pay with crypto</button>
+      <div id="checkout"></div>
+      <p id="result" class="result" role="status" aria-live="polite"></p>
+    </aside>
+  </main>
+  <footer>
+    Example code from <a href="https://github.com/send21io/send21-examples/tree/main/examples/checkout-component">send21-examples</a>.
+    Pay links by <a href="https://send21.io">send21</a>: non-custodial, the payer signs in their own wallet.
+  </footer>
+</body>
+</html>
