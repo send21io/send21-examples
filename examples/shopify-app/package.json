@@ -1,0 +1,11 @@
+{
+  "name": "send21-shopify-app",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "send21 crypto payments for Shopify (Route B: order-based reconciliation, no payments-partner approval needed)",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "start": "node server.mjs"
+  }
+}

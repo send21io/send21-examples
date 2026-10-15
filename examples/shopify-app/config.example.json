@@ -1,0 +1,21 @@
+{
+  "appUrl": "https://shopify-app.send21.io",
+  "shopify": {
+    "apiKey": "shopify-app-client-id",
+    "apiSecret": "shopify-app-client-secret",
+    "apiVersion": "2025-07",
+    "scopes": "read_orders,write_orders",
+    "gatewayName": "Crypto (send21)"
+  },
+  "send21": {
+    "apiBase": "https://send21.io",
+    "apiKey": "s21_your-key-with-drafts-read-and-write",
+    "webhookSecret": "secret-shown-once-when-creating-the-send21-webhook",
+    "expiryHours": 24,
+    "options": [
+      { "currency": "Btc",  "network": "Mainnet",  "address": "bc1q..." },
+      { "currency": "Usdc", "network": "Solana",   "address": "5Gv7..." },
+      { "currency": "Usdt", "network": "Ethereum", "address": "0xAb..." }
+    ]
+  }
+}

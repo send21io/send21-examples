@@ -28,6 +28,7 @@ Copy-paste setups for common tools:
 | Folder | What it does |
 |---|---|
 | [examples/mcp-payment-request](examples/mcp-payment-request) | An agent-side TypeScript script that connects to the send21 MCP server and creates a payment request (pay link) for an amount and fiat currency, then prints the link. Includes MCP client config for Cursor and Claude Desktop. |
+| [examples/shopify-app](examples/shopify-app) | Reference code that connects a Shopify store to send21 without payments-partner approval. The buyer checks out with a manual payment method and gets a send21 pay link; when `draft.confirmed` arrives (`X-Send21-Signature-V2` verified), the app marks the Shopify order paid. Node.js, no npm dependencies. Each merchant runs it as their own custom Shopify app. |
 | [examples/webhook-receiver](examples/webhook-receiver) | A small Node.js server with no dependencies that verifies the `X-Send21-Signature-V2` HMAC (timestamp + delivery id + raw body, 5-minute window; legacy `X-Send21-Signature` only as fallback), ignores repeated deliveries by `X-Send21-Delivery` and handles `draft.confirmed`, `draft.amount_mismatch` and the review events `draft.mismatch_accepted`, `draft.mismatch_rejected`, `draft.mismatch_reminder` and `draft.mismatch_unresolved`. Comes with tests that use the documented example payload. |
 
 ## Supported currencies and networks
@@ -188,7 +189,7 @@ The `draft.amount_mismatch` sample in [samples.js](examples/webhook-receiver/sam
 - Lightning payments are confirmed automatically only when the receiver's wallet provider supports LUD-21. A pasted invoice is never confirmed automatically.
 - No USDT on Tron, Arbitrum or Polygon, and nothing on BNB Chain. No ETH on Polygon.
 - On Base and Arbitrum, several ETH payments to the same address at the same time may not be told apart. Keep one open ETH payment per address there.
-- No app in the Shopify App Store. A merchant connects a store with their own custom Shopify app.
+- No app in the Shopify App Store. A merchant connects a store with their own custom Shopify app, for example the [Shopify reference code](examples/shopify-app).
 - A payment with a different amount is not confirmed automatically. The receiver decides. Transfers more than 10% off, or ones that could belong to several open payments, are not flagged.
 - No payouts to bank accounts and no conversion to fiat.
 
