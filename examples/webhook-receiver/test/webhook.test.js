@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createHmac, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
-import { sign, verifySignature } from "../verify.js";
+import { sign, signV2, verifyDelivery, verifySignature, verifySignatureV2 } from "../verify.js";
 import { createWebhookServer, handleEvent } from "../server.js";
 import { amountMismatchBody as mismatch, confirmedAcceptedBody as confirmedAccepted, confirmedBody as confirmed, testBody } from "../samples.js";
 
@@ -50,6 +50,75 @@ test("rejects missing, unprefixed and malformed headers without throwing", () =>
 
 test("rejects when no secret is configured", () => {
   assert.equal(verifySignature(confirmed, sign(confirmed, ""), ""), false);
+});
+
+test("V2: signV2 matches the documented format t=<timestamp>,v1=<hex HMAC-SHA256 of \"<timestamp>.<delivery id>.<raw body>\">", () => {
+  const delivery = randomUUID();
+  const t = 1792046712;
+  const expected = createHmac("sha256", secret).update(`${t}.${delivery}.${mismatch}`).digest("hex");
+  assert.equal(signV2(mismatch, delivery, t, secret), `t=${t},v1=${expected}`);
+});
+
+test("V2: accepts a fresh delivery, refuses one older than 5 minutes or from the future", () => {
+  const delivery = randomUUID();
+  const now = Math.floor(Date.now() / 1000);
+  assert.equal(verifySignatureV2(confirmed, signV2(confirmed, delivery, now, secret), delivery, secret), true);
+  assert.equal(verifySignatureV2(confirmed, signV2(confirmed, delivery, now - 299, secret), delivery, secret, { now }), true);
+  assert.equal(verifySignatureV2(confirmed, signV2(confirmed, delivery, now - 301, secret), delivery, secret, { now }), false);
+  assert.equal(verifySignatureV2(confirmed, signV2(confirmed, delivery, now + 301, secret), delivery, secret, { now }), false);
+});
+
+test("V2: rejects a changed delivery id, timestamp, body or secret, and malformed headers", () => {
+  const delivery = randomUUID();
+  const now = Math.floor(Date.now() / 1000);
+  const header = signV2(mismatch, delivery, now, secret);
+  assert.equal(verifySignatureV2(mismatch, header, randomUUID(), secret), false);
+  assert.equal(verifySignatureV2(mismatch, header.replace(`t=${now}`, `t=${now - 1}`), delivery, secret), false);
+  assert.equal(verifySignatureV2(JSON.stringify(JSON.parse(mismatch)), header, delivery, secret), false);
+  assert.equal(verifySignatureV2(mismatch, signV2(mismatch, delivery, now, "other-secret"), delivery, secret), false);
+  for (const h of [undefined, "", "t=,v1=", `t=${now}`, `v1=${header.split("v1=")[1]}`, `t=abc,v1=${header.split("v1=")[1]}`, [header]]) {
+    assert.equal(verifySignatureV2(mismatch, h, delivery, secret), false, `header ${h}`);
+  }
+  assert.equal(verifySignatureV2(mismatch, header, undefined, secret), false);
+  assert.equal(verifySignatureV2(mismatch, header, delivery, ""), false);
+});
+
+test("verifyDelivery prefers V2 and uses the legacy header only when no V2 header is sent", () => {
+  const delivery = randomUUID();
+  const now = Math.floor(Date.now() / 1000);
+  const legacy = sign(confirmed, secret);
+  const fresh = signV2(confirmed, delivery, now, secret);
+  const stale = signV2(confirmed, delivery, now - 600, secret);
+  assert.deepEqual(verifyDelivery(confirmed, { "x-send21-delivery": delivery, "x-send21-signature-v2": fresh, "x-send21-signature": legacy }, secret), { valid: true, scheme: "v2" });
+  // A stale V2 is refused even when a valid legacy signature is present.
+  assert.deepEqual(verifyDelivery(confirmed, { "x-send21-delivery": delivery, "x-send21-signature-v2": stale, "x-send21-signature": legacy }, secret), { valid: false, scheme: "v2" });
+  assert.deepEqual(verifyDelivery(confirmed, { "x-send21-signature": legacy }, secret), { valid: true, scheme: "v1" });
+  assert.deepEqual(verifyDelivery(confirmed, { "x-send21-signature": legacy }, secret, { allowLegacy: false }), { valid: false, scheme: null });
+  assert.deepEqual(verifyDelivery(confirmed, {}, secret), { valid: false, scheme: null });
+});
+
+test("HTTP server verifies V2 deliveries and refuses stale ones", async (t) => {
+  const server = createWebhookServer({ secret, log: () => {} });
+  await new Promise((resolve) => server.listen(0, resolve));
+  t.after(() => server.close());
+  const url = `http://127.0.0.1:${server.address().port}/webhooks/send21`;
+  const post = (body, { delivery = randomUUID(), timestamp = Math.floor(Date.now() / 1000), legacy = true } = {}) => {
+    const headers = {
+      "content-type": "application/json",
+      "X-Send21-Delivery": delivery,
+      "X-Send21-Timestamp": String(timestamp),
+      "X-Send21-Signature-V2": signV2(body, delivery, timestamp, secret),
+    };
+    if (legacy) headers["X-Send21-Signature"] = sign(body, secret);
+    return fetch(url, { method: "POST", headers, body });
+  };
+  let res = await post(confirmed);
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), { ok: true, outcome: "order_paid" });
+  res = await post(confirmed, { legacy: false });
+  assert.equal(res.status, 200);
+  res = await post(confirmed, { timestamp: Math.floor(Date.now() / 1000) - 600 });
+  assert.equal(res.status, 401);
 });
 
 test("draft.amount_mismatch sample has the documented payload shape", () => {
@@ -139,7 +208,7 @@ test("handleEvent handles draft.seen, test and ignores other events", () => {
   }
 });
 
-test("HTTP server verifies signatures, handles events and ignores repeated deliveries", async (t) => {
+test("HTTP server (legacy X-Send21-Signature fallback) verifies signatures, handles events and ignores repeated deliveries", async (t) => {
   const server = createWebhookServer({ secret, log: () => {} });
   await new Promise((resolve) => server.listen(0, resolve));
   t.after(() => server.close());

@@ -28,7 +28,7 @@ Copy-paste setups for common tools:
 | Folder | What it does |
 |---|---|
 | [examples/mcp-payment-request](examples/mcp-payment-request) | An agent-side TypeScript script that connects to the send21 MCP server and creates a payment request (pay link) for an amount and fiat currency, then prints the link. Includes MCP client config for Cursor and Claude Desktop. |
-| [examples/webhook-receiver](examples/webhook-receiver) | A small Node.js server with no dependencies that verifies the `X-Send21-Signature` HMAC, ignores repeated deliveries by `X-Send21-Delivery` and handles `draft.confirmed`, `draft.amount_mismatch` and the review events `draft.mismatch_accepted`, `draft.mismatch_rejected`, `draft.mismatch_reminder` and `draft.mismatch_unresolved`. Comes with tests that use the documented example payload. |
+| [examples/webhook-receiver](examples/webhook-receiver) | A small Node.js server with no dependencies that verifies the `X-Send21-Signature-V2` HMAC (timestamp + delivery id + raw body, 5-minute window; legacy `X-Send21-Signature` only as fallback), ignores repeated deliveries by `X-Send21-Delivery` and handles `draft.confirmed`, `draft.amount_mismatch` and the review events `draft.mismatch_accepted`, `draft.mismatch_rejected`, `draft.mismatch_reminder` and `draft.mismatch_unresolved`. Comes with tests that use the documented example payload. |
 
 ## Supported currencies and networks
 
@@ -40,7 +40,7 @@ Copy-paste setups for common tools:
 - SOL, native, on Solana.
 - ETH, native, on Ethereum, Base and Arbitrum.
 - Wrapped BTC on Solana and Ethereum.
-- Prices in 165 fiat currencies.
+- Prices in 161 fiat currencies.
 
 The testnet demo covers Bitcoin, Solana, Ethereum, Base, Arbitrum and Polygon test networks. On send21.io the test networks are reserved for the demo, so drafts made with your own API key use the live networks.
 
@@ -156,15 +156,15 @@ The full webhook guide is in the Webhooks section at https://send21.io/swagger. 
 |---|---|
 | `X-Send21-Event` | The event type, same as `event` in the body. |
 | `X-Send21-Delivery` | Unique delivery id. Retries reuse it. |
-| `X-Send21-Signature` | v1: `sha256=` followed by the lowercase hex HMAC-SHA256 of the raw body, keyed with your signing secret. |
-| `X-Send21-Timestamp` | When the delivery was sent, in Unix seconds. |
-| `X-Send21-Signature-V2` | Recommended: `t=<timestamp>,v1=<hex HMAC-SHA256 of "<timestamp>.<delivery id>.<raw body>">`. It also signs the time and delivery id, so a copied delivery cannot be replayed. Refuse deliveries older than 5 minutes. |
+| `X-Send21-Signature-V2` | Verify this one: `t=<timestamp>,v1=<hex HMAC-SHA256 of "<timestamp>.<delivery id>.<raw body>">`, keyed with your signing secret. It also signs the time and delivery id, so a copied delivery cannot be replayed. Refuse deliveries older than 5 minutes. |
+| `X-Send21-Timestamp` | When the delivery was sent, in Unix seconds (the same value as `t=` in the V2 header). |
+| `X-Send21-Signature` | Legacy, still sent for compatibility: `sha256=` followed by the lowercase hex HMAC-SHA256 of the raw body only (no timestamp, no delivery id). Use it only as a fallback when no V2 header is present. |
 
-Any 2xx response counts as delivered. Anything else, or no answer within 15 seconds, is retried after 1, 2, 4, 8 minutes and so on, up to 8 attempts. Deliveries can arrive out of order. With `X-Send21-Signature-V2`, refuse deliveries older than 5 minutes. The [n8n template](n8n) verifies V2 with a v1 fallback; this Node.js receiver still checks the v1 header. Repeated deliveries are recognized by `X-Send21-Delivery`.
+Any 2xx response counts as delivered. Anything else, or no answer within 15 seconds, is retried after 1, 2, 4, 8 minutes and so on, up to 8 attempts. Deliveries can arrive out of order. With `X-Send21-Signature-V2`, refuse deliveries older than 5 minutes. Both this Node.js receiver and the [n8n template](n8n) verify V2 first and fall back to the legacy header only when no V2 header is sent. Repeated deliveries are recognized by `X-Send21-Delivery`.
 
 The receiver:
 
-- verifies the signature over the exact bytes received, with a constant-time compare, and answers 401 if it does not match (a missing or malformed header returns 401, it does not throw),
+- verifies `X-Send21-Signature-V2` over `"<timestamp>.<delivery id>.<raw body>"` (the exact bytes received), with a constant-time compare, and refuses deliveries more than 5 minutes old; only when no V2 header is sent does it fall back to the legacy body-only `X-Send21-Signature` (turn that off with `allowLegacy: false`). It answers 401 on a missing, expired or wrong signature (a malformed header returns 401, it does not throw),
 - answers 200 without handling the event again when it has already handled that `X-Send21-Delivery` id (kept in memory here, use your database in production),
 - on `draft.confirmed`, logs the order id, amount, currency, network and txid. This is the only place where you mark the order paid. When `receivedAmountSats` or `receivedAmount` is present, the owner accepted a different amount, and it logs `paid (different amount accepted)` with the received and billed amounts,
 - on `draft.amount_mismatch`, logs the received and billed amounts, flags the payment for review and does not mark it paid. The receiver decides: accept it as paid in the send21 app or with `POST /api/v1/drafts/{id}/accept-received`,

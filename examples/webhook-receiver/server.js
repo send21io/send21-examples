@@ -1,6 +1,6 @@
 import { createServer } from "node:http";
 import { fileURLToPath } from "node:url";
-import { DELIVERY_HEADER, EVENT_HEADER, SIGNATURE_HEADER, verifySignature } from "./verify.js";
+import { DELIVERY_HEADER, EVENT_HEADER, verifyDelivery } from "./verify.js";
 
 const MAX_BODY_BYTES = 1024 * 1024;
 
@@ -125,9 +125,10 @@ export function createDeliveryStore(max = 10_000) {
 }
 
 /**
- * @param {{ secret: string, path?: string, log?: (line: string) => void, deliveries?: { has(id: string): boolean, add(id: string): void } }} options
+ * @param {{ secret: string, path?: string, log?: (line: string) => void, deliveries?: { has(id: string): boolean, add(id: string): void }, allowLegacy?: boolean }} options
+ * allowLegacy: accept the body-only X-Send21-Signature when no V2 header is sent (default true).
  */
-export function createWebhookServer({ secret, path = "/webhooks/send21", log = console.log, deliveries = createDeliveryStore() }) {
+export function createWebhookServer({ secret, path = "/webhooks/send21", log = console.log, deliveries = createDeliveryStore(), allowLegacy = true }) {
   if (!secret) throw new Error("A webhook secret is required (SEND21_WEBHOOK_SECRET).");
 
   return createServer((req, res) => {
@@ -153,12 +154,15 @@ export function createWebhookServer({ secret, path = "/webhooks/send21", log = c
       if (res.writableEnded) return;
       const rawBody = Buffer.concat(chunks);
 
-      if (!verifySignature(rawBody, req.headers[SIGNATURE_HEADER], secret)) {
-        log("rejected delivery with a missing or invalid signature");
+      // X-Send21-Signature-V2 first (timestamp + delivery id + raw body, 5-minute
+      // window); the legacy body-only X-Send21-Signature only when no V2 header is sent.
+      const { valid, scheme } = verifyDelivery(rawBody, req.headers, secret, { allowLegacy });
+      if (!valid) {
+        log(`rejected delivery with a missing, expired or invalid signature (${scheme ?? "none"})`);
         return reply(401, { error: "invalid signature" });
       }
 
-      // Only the body is signed. Take the event type from the body; the
+      // The event type is not in the signature. Take the event type from the body; the
       // X-Send21-Event header carries the same value and is useful for routing logs.
       let payload;
       try {
