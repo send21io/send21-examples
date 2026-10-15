@@ -6,6 +6,10 @@ send21 is non-custodial software that prepares payment instructions. It never ho
 
 Not an official LangChain package. Questions: info@send21.io
 
+- Website: https://send21.io
+- Docs: https://send21.io/docs (MCP server: https://send21.io/docs/mcp, webhooks: https://send21.io/docs/webhooks)
+- Examples and source: https://github.com/send21io/send21-examples
+
 ## Install
 
 ```sh
