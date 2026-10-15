@@ -1,0 +1,16 @@
+{
+  "name": "send21-webhook-receiver-sqlite",
+  "version": "1.0.0",
+  "private": true,
+  "description": "send21 webhook receiver with a durable delivery-id store: the delivery id and the order update are committed in one SQLite transaction before the 2xx answer.",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "send-sample": "node ../webhook-receiver/send-sample.js",
+    "test": "node --test \"test/**/*.test.js\""
+  }
+}

@@ -12,7 +12,7 @@ npm run send-sample -- test
 ```
 
 - `verify.js`: the signature check (`verifyDelivery`: V2 first, legacy fallback), copy it into your own app.
-- `server.js`: the HTTP receiver, repeated-delivery check and event handler.
+- `server.js`: the HTTP receiver, repeated-delivery check and event handler. The repeated-delivery check is in memory, so it is forgotten when the process restarts. For a durable version, where the delivery id and the order update are committed in one SQLite transaction, see [webhook-receiver-sqlite](../webhook-receiver-sqlite).
 - `samples.js`: sample bodies. `draft.amount_mismatch` is the documented example payload. `draft.confirmed-accepted` is a `draft.confirmed` after the owner accepted a different amount, derived from the docs (it is not a documented example payload).
 - `send-sample.js`: posts a locally signed sample event to the running server, with the same headers as a send21 delivery (including `X-Send21-Timestamp` and `X-Send21-Signature-V2`).
 
