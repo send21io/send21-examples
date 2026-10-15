@@ -1,0 +1,26 @@
+{
+  "name": "send21-mastra-example",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A Mastra agent that creates a send21 pay link over the remote send21 MCP server and reads its status. The agent never holds keys.",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "dry-run": "tsx src/index.ts --dry-run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@mastra/core": "^1.77.0",
+    "@mastra/mcp": "^2.4.0",
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0"
+  }
+}
