@@ -1,0 +1,18 @@
+{
+  "name": "send21-pair",
+  "version": "0.1.0",
+  "private": true,
+  "description": "TESTNET peer-to-peer payments prototype on send21: pair with a link or QR, request and pay in local money, the payer signs in their own wallet.",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "start": "node server/server.js",
+    "demo": "PAIR_MODE=demo node server/server.js",
+    "test": "node --test \"test/**/*.test.js\"",
+    "build:pages": "node scripts/build-pages.js",
+    "screenshots": "node scripts/screenshots.js"
+  }
+}

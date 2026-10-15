@@ -1,0 +1,1 @@
+`qrcode.js` is `dist/qrcode.mjs` from [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator) 2.0.4 by Kazuhiko Arase, MIT license (header kept in the file). Vendored so the app has no build step and no npm dependency.

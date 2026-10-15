@@ -34,6 +34,12 @@ Copy-paste setups for common tools:
 | [examples/webhook-receiver](examples/webhook-receiver) | A small Node.js server with no dependencies that verifies the `X-Send21-Signature-V2` HMAC (timestamp + delivery id + raw body, 5-minute window; legacy `X-Send21-Signature` only as fallback), ignores repeated deliveries by `X-Send21-Delivery` and handles `draft.confirmed`, `draft.amount_mismatch` and the review events `draft.mismatch_accepted`, `draft.mismatch_rejected`, `draft.mismatch_reminder` and `draft.mismatch_unresolved`. Comes with tests that use the documented example payload. |
 | [examples/webhook-receiver-sqlite](examples/webhook-receiver-sqlite) | The same receiver with a durable delivery-id store in SQLite (`node:sqlite`, no server, no dependency): the `X-Send21-Delivery` id and the order update are committed in one transaction before the 2xx answer, so a restart, a lost ack or a crash before commit never applies an update twice or loses it. Tests kill and restart the process to show it. |
 
+## Apps
+
+| Folder | What it is |
+|---|---|
+| [apps/send21-pair](apps/send21-pair) | **TESTNET prototype** of peer-to-peer payments: two people pair by scanning a QR code or opening a link, then request and pay each other in their own currency (split a bill, pay back a friend, a QR anyone can pay at a market stall). Each payment is a draft to the receiver's own address; the payer taps the notification, taps *Open wallet* (BIP-21, Solana Pay or EIP-681 deep link) and signs in their own wallet. Installable PWA with Web Push (VAPID) and a Node.js backend with no dependencies (`node:sqlite`): `X-Send21-Signature-V2` verification, durable dedupe on `X-Send21-Delivery`, amount and asset checked against the stored request. Mock mode runs without a key; [try it in the browser](https://send21io.github.io/send21-examples/pair/). Design notes in [DESIGN.md](apps/send21-pair/DESIGN.md). |
+
 ## Supported currencies and networks
 
 - BTC on Bitcoin, on-chain.
