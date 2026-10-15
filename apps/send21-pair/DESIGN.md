@@ -26,15 +26,26 @@ Ranked by how much the send21 model (a prepared draft, priced in local fiat, sig
 Real people don't think in assets and networks. They think "Anna owes me 120 kronor".
 
 1. **No signup.** A display name is all. The device gets a random token; there is no password, email or phone number. Receive addresses are optional per asset (on testnet the public send21 demo wallets are prefilled so anyone can try it).
-2. **Two buttons.** The home screen has *Request* and *Pay*, the contacts as avatars, and a short activity list. Nothing else on the first screen.
+2. **Four big actions.** The home screen has a summary card (owed to you, in your currency), *Request*, *Pay*, *Split* and *QR* as big icon buttons, the contacts as avatars, and a short activity list.
 3. **Local money first.** You type `120`, in your currency (detected from the phone's locale: sv-SE gives SEK, de-DE gives EUR). The crypto amount is the second, smaller line ("≈ 11.42 USDC").
 4. **The app picks the asset.** The receiver lists what they accept; the app picks the cheapest and fastest of those: Lightning, then USDC or EURC on Solana (EURC first when the amount is in EUR), then Base, then on-chain BTC, then Ethereum. Nobody chooses a network unless they open "Other ways to pay".
-5. **Plain status.** "Waiting for Bo to pay", "Bo is paying…", "Paid ✓", "Check the amount", "Expired". Never `AwaitingPayment`.
+5. **Plain status.** A chip with an icon and one word ("Waiting", "Paying", "Paid", "Check", "Expired"), with the full sentence ("Waiting for Bo to pay") for screen readers. Never `AwaitingPayment`.
 6. **Contacts are faces.** Colored avatars with initials. Tap a face, type an amount, done.
 7. **Pairing is one scan.** Your code is a QR plus a link (`/p/<code>`). The phone's own camera opens it, the other side taps "Add Anna", and both of you see each other. No in-app scanner needed (one is offered where the browser has `BarcodeDetector`).
 8. **Links work without the app.** A request link opens a plain web page with the amount, the receiver's name, a big *Open wallet* button and a QR. The payer does not need the app or a name to pay.
 9. **One more tap is OK, three are not.** Notification, tap, *Open wallet*, sign. That's the floor on mobile today.
 10. **Ask for notifications at the right moment**, after the first contact is added, not on first launch.
+
+### Visual language (v2)
+
+Aimed at people around 18 to 30 who use Revolut, Cash App, Vipps or Swish, with its own look:
+
+- **Dark first.** Near-black stage with a soft orange glow; glassy cards (translucent cream, blur). Light mode is a cream stage with white glass, chosen in Settings or with the sun/moon button and remembered on the device.
+- **Brand colors only**: orange `#F7931A` as gradients on primary actions and the summary card, cream `#FEF8EC`, charcoal `#1B1C20`; green only for "paid". Every text pair is WCAG AA in both themes (orange text is darkened to `#96490A` on cream).
+- **Icons over words.** One 24 px, 2 px-stroke SVG icon set inline in the app (no CDN, no font). Labels are one to three words; longer explanations only where honesty needs them (the demo-mode amount, the mock box).
+- **Big and bold.** 900-weight amounts (60 to 72 px) in the user's own currency, 48 px minimum tap targets, 56 to 64 px primary buttons.
+- **Moments that feel good**: a check burst and light confetti when something is paid, a glowing QR card with scan corners for pairing, a ring that fills as friends pay their share of a split, avatar halos. All motion is CSS and stops under `prefers-reduced-motion`.
+- **Onboarding** is three swipeable cards (pair, ask/split, your wallet signs), then a name. Skippable, shown once per device.
 
 ## 3. Honest constraints
 

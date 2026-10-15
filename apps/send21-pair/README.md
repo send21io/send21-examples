@@ -16,20 +16,24 @@ Two people connect by scanning each other's QR code or opening a link. After tha
 
 | Use case | How it works here |
 |---|---|
-| **Ask a friend to pay you back** | Tap their face, type `120`, tap *Request 120 kr from Sam*. Sam gets a notification, taps it, taps *Open wallet*, signs. You both see *Paid ✓*. |
+| **Ask a friend to pay you back** | Tap their face, type `120`, tap *Request 120 kr*. Sam gets a notification, taps it, taps *Open wallet*, signs. You both see *Paid ✓*. |
 | **Pay someone** | Same screen, *Pay*. The address comes from the receiver's own profile; the payer can't change it. |
-| **Split a bill** | Pick several faces, type the total. The app makes one draft per person (shares in cents that add up) and shows who still owes. |
-| **Get paid by anyone with a QR** (market stall, garage sale) | *Get paid by anyone with a QR code*, type the amount, show the screen. The buyer's phone camera opens a web page with *Open wallet*. No app or account needed on their side. |
+| **Split a bill** | *Split*, pick several faces, type the total. The app makes one draft per person (shares in cents that add up) and a progress ring shows who still owes. |
+| **Get paid by anyone with a QR** (market stall, garage sale) | *QR*, type the amount, show the screen. The buyer's phone camera opens a web page with *Open wallet*. No app or account needed on their side. |
 
 Why these: they are the moments people actually ask each other for money, and they all share one payer screen. Remittance, invoicing, recurring requests, group pots and agent-initiated requests are ranked in [DESIGN.md](DESIGN.md#1-who-would-use-this-and-for-what).
+
+## Look and feel
+
+A consumer money app for people around 18 to 30: dark by default (light mode in Settings or the sun/moon button), bold type, big tap targets (48 px and up), glassy cards and orange gradients on the send21 colors (orange `#F7931A`, cream `#FEF8EC`, charcoal `#1B1C20`). One inline SVG icon set (`web/icons.js`), one- to three-word labels. Onboarding is three swipeable cards. A check burst and light confetti when something is paid, a glowing QR card for pairing, a progress ring for splits, a TESTNET badge that never scrolls away. Animations stop under `prefers-reduced-motion`. Text meets WCAG AA contrast in both themes; icon-only buttons have `aria-label`s; everything works with the keyboard (the carousel takes arrow keys). Mobile first at 390×844; on desktop the app sits in a centered glass column.
 
 ## Simplicity decisions
 
 - **No signup.** A display name only. No email, password or phone number; the device gets a random token.
-- **Two buttons:** *Request* and *Pay*. Contacts are colored avatars. A short activity list.
+- **Four big actions:** *Request*, *Pay*, *Split*, *QR*, under a summary card with what you're owed in your own currency. Contacts are a row of avatars. A short activity list.
 - **Local money first.** You type in your currency (taken from the phone's locale, changeable). The crypto amount is the smaller second line: `≈ 11.32 USDC · Solana Devnet`.
 - **The app picks the asset**: the cheapest and fastest the receiver accepts. Lightning, then USDC/EURC on Solana (EURC first for EUR amounts), Base, on-chain BTC, Ethereum.
-- **Plain status:** *Waiting for Sam to pay*, *Sam is paying…*, *Paid ✓*, *Check the amount*, *Expired*.
+- **Plain status:** a chip with an icon and one word (*Waiting*, *Paying*, *Paid*, *Check*, *Expired*); screen readers get the full sentence (*Waiting for Sam to pay*).
 - **Pairing is one scan** with the phone's own camera (an in-app scanner is offered where `BarcodeDetector` exists), then one tap, *Add Alex*. Both sides see each other.
 - **Links work without the app.** A request link opens a plain page with the amount, the receiver's name, *Open wallet* and a QR.
 - **Notifications are asked for after the first contact**, not on first launch. On iPhone the app explains *Add to Home Screen* first.
@@ -107,6 +111,8 @@ server/send21.js       mock, demo and api providers (documented send21 endpoints
 server/verify.js       X-Send21-Signature-V2 check, copied from examples/webhook-receiver
 server/webpush.js      VAPID + aes128gcm Web Push with node:crypto
 web/                   the PWA: index.html, app.js, styles.css, sw.js, manifest, icons
+web/icons.js           the inline SVG icon set (Lucide paths, see Credits)
+web/theme.js           dark/light before first paint
 web/lib/core.js        shared by browser and server: assets, smart default, amounts, deep links, status text
 web/lib/static-api.js  the client-side mock used on GitHub Pages
 test/                  node:test suites
@@ -128,12 +134,13 @@ screenshots/           PNGs at a 390×844 phone viewport
 
 | | | |
 |---|---|---|
-| ![Start](screenshots/01-start.png) | ![My code](screenshots/02-my-code.png) | ![Add contact](screenshots/03-add-contact.png) |
-| ![Request](screenshots/04-request.png) | ![Asked](screenshots/05-home-asked.png) | ![Pay](screenshots/06-pay.png) |
-| ![Paid](screenshots/07-paid.png) | ![Home, paid](screenshots/08-home-paid.png) | ![Split](screenshots/09-split.png) |
-| ![Split sent](screenshots/10-split-sent.png) | ![QR anyone can pay](screenshots/11-qr-anyone.png) | |
+| ![Onboarding](screenshots/01-onboarding.png) | ![Start](screenshots/02-start.png) | ![My code](screenshots/03-my-code.png) |
+| ![Add contact](screenshots/04-add-contact.png) | ![Request](screenshots/05-request.png) | ![Asked](screenshots/06-home-asked.png) |
+| ![Pay](screenshots/07-pay.png) | ![Paid](screenshots/08-paid.png) | ![Home, paid](screenshots/09-home-paid.png) |
+| ![Split](screenshots/10-split.png) | ![Split progress](screenshots/11-split-sent.png) | ![QR anyone can pay](screenshots/12-qr-anyone.png) |
+| ![Light mode](screenshots/13-light.png) | ![Desktop](screenshots/14-desktop.png) | |
 
-Regenerate with `npm i --no-save playwright-core && CHROME_PATH=/path/to/chrome npm run screenshots`.
+Regenerate with `npm i --no-save playwright-core && CHROME_PATH=/path/to/chrome npm run screenshots` (it also builds `overview.png`).
 
 ## Limitations
 
@@ -145,6 +152,11 @@ Regenerate with `npm i --no-save playwright-core && CHROME_PATH=/path/to/chrome 
 - The GitHub Pages demo has no server: one-way pairing per scan, manual receipt links, no push.
 - Prototype security: the device token sits in `localStorage` and is sent as a query parameter for SSE; there is no rate limiting, no account deletion on the server and no abuse handling. A production version needs these, plus a review of who may add whom.
 - One currency per user, 28 currencies in the mock rate table (send21 itself prices in 161).
+
+## Credits
+
+- Icons: path data from [Lucide](https://lucide.dev) (ISC license, Copyright (c) Lucide Contributors; parts derived from [Feather](https://github.com/feathericons/feather), MIT; full terms at [lucide.dev/license](https://lucide.dev/license)), embedded in `web/icons.js`. No CDN.
+- QR codes: [qrcode-generator](https://www.npmjs.com/package/qrcode-generator), MIT (`web/vendor/`).
 
 ## Contact
 

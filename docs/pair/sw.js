@@ -1,8 +1,8 @@
 // send21 pair service worker: offline app shell, Web Push, notification taps.
 // A notification tap can only open an http(s) page (the pay screen), never a
 // wallet URI, so the wallet opens with one more tap on "Open wallet".
-const CACHE = "pair-v1";
-const SHELL = ["./", "index.html", "styles.css", "app.js", "config.js", "lib/core.js", "lib/server-api.js", "lib/static-api.js", "vendor/qrcode.js", "icons/logo.svg", "icons/icon-192.png", "manifest.webmanifest"];
+const CACHE = "pair-v2";
+const SHELL = ["./", "index.html", "styles.css", "app.js", "icons.js", "theme.js", "config.js", "lib/core.js", "lib/server-api.js", "lib/static-api.js", "vendor/qrcode.js", "icons/logo.svg", "icons/icon-192.png", "manifest.webmanifest"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
