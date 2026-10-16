@@ -10,8 +10,13 @@ import {
 const uuid = () => randomId();
 const base = () => location.href.split("#")[0].split("?")[0];
 
-export function staticApi(slot) {
-  const KEY = `pair.static.${slot}`;
+/**
+ * @param {string} slot test user slot (?as=)
+ * @param {{ storagePrefix?: string, memo?: string }} [brand] white-label apps pass their own
+ *   localStorage prefix (so apps on one origin don't share data) and wallet memo name.
+ */
+export function staticApi(slot, { storagePrefix = "pair", memo = "send21 pair" } = {}) {
+  const KEY = `${storagePrefix}.static.${slot}`;
   const load = () => JSON.parse(localStorage.getItem(KEY) ?? "null");
   // A payer who opens a link without having the app gets an in-memory guest store.
   const guest = () => ({ user: null, addresses: {}, contacts: [], requests: [] });
@@ -43,7 +48,7 @@ export function staticApi(slot) {
       fiat: r.fiat, fiat_amount: r.fiat_amount, note: r.note, asset: r.asset, asset_label: ASSETS[r.asset].label,
       network: networkOf(r.asset, "mock").name, crypto: cryptoLine(r.amount_base_units, r.asset, "mock"),
       receiver_address: r.receiver_address,
-      payment_uri: paymentUri({ assetId: r.asset, address: r.receiver_address, baseUnits: r.amount_base_units, mode: "mock", message: r.note ? `send21 pair: ${r.note}` : "send21 pair" }),
+      payment_uri: paymentUri({ assetId: r.asset, address: r.receiver_address, baseUnits: r.amount_base_units, mode: "mock", message: r.note ? `${memo}: ${r.note}` : memo }),
       pay_url: null, source: "static", testnet: true, tx_id: r.tx_id ?? null, receipt: r.receipt ?? null,
     };
   }

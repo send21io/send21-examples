@@ -1,8 +1,8 @@
 // Talks to the Node backend. The device token lives in localStorage, one per
 // "slot" so two users can share one browser for testing (?as=anna, ?as=bo).
 
-export function serverApi(slot) {
-  const KEY = `pair.token.${slot}`;
+export function serverApi(slot, { storagePrefix = "pair" } = {}) {
+  const KEY = `${storagePrefix}.token.${slot}`;
   let cfg = null;
   const tokenOf = () => localStorage.getItem(KEY);
 

@@ -131,6 +131,12 @@ screenshots/           PNGs at a 390×844 phone viewport
 - **End to end (mock):** pair, request, notification over SSE, pay screen without login, simulated signed webhooks, *Paid ✓* on both sides; the open QR link; demo-mode polling; Web Push encrypted and VAPID-signed to a fake push service and decrypted again.
 - **Deep links** match, character for character, the `paymentUri` values send21's testnet demo returns.
 
+The same suite runs against a white-label server wrapper with `APP_SERVER_MODULE=<path to its server/app.js> npm test`.
+
+## White-label apps on this code
+
+[apps/dewby](../dewby) is a second app with its own brand and UI on this server and `web/lib/`. `createApp` takes optional, backwards-compatible brand options: `webDirs` (static roots searched in order; a `{ dir, only: ["lib/", "vendor/"] }` entry shares just those folders), `memoPrefix` (the wallet memo, default `send21 pair`), `bootGlobal` (the global `config.js` sets, default `SEND21_PAIR`) and `liveEnv` (the env var named in the live-networks guard). `staticApi(slot, { storagePrefix, memo })` and `serverApi(slot, { storagePrefix })` keep each app's browser storage apart on a shared origin.
+
 ## Screenshots
 
 | | | |

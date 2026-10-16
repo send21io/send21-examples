@@ -39,6 +39,7 @@ Copy-paste setups for common tools:
 | Folder | What it is |
 |---|---|
 | [apps/send21-pair](apps/send21-pair) | **TESTNET prototype** of peer-to-peer payments: two people pair by scanning a QR code or opening a link, then request and pay each other in their own currency (split a bill, pay back a friend, a QR anyone can pay at a market stall). Each payment is a draft to the receiver's own address; the payer taps the notification, taps *Open wallet* (BIP-21, Solana Pay or EIP-681 deep link) and signs in their own wallet. Installable PWA with Web Push (VAPID) and a Node.js backend with no dependencies (`node:sqlite`): `X-Send21-Signature-V2` verification, durable dedupe on `X-Send21-Delivery`, amount and asset checked against the stored request. Mock mode runs without a key; [try it in the browser](https://send21io.github.io/send21-examples/pair/). Design notes in [DESIGN.md](apps/send21-pair/DESIGN.md). |
+| [apps/dewby](apps/dewby) | **TESTNET white-label example** built on send21: *dewby*, a fresh, light P2P money app (request, pay, split, a QR anyone can pay, friends, status chips) with its own name, logo, palette and rounded type. The UI is new; the server and payment logic are send21 pair's, imported unchanged (receiver address fixed server-side, `Idempotency-Key`, `X-Send21-Signature-V2`, SQLite dedupe, mismatch handling), and pair's whole test suite runs against it. Rebrand it by editing one file, `web/brand.js`. [Try it in the browser](https://send21io.github.io/send21-examples/dewby/). |
 
 ## Supported currencies and networks
 

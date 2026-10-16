@@ -1,8 +1,13 @@
 import { mkdtempSync } from "node:fs";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { createApp } from "../server/app.js";
+import { join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
+
+// White-label apps run this whole suite against their own server wrapper:
+// APP_SERVER_MODULE=../dewby/server/app.js node --test test/  (see apps/dewby/test/shared-suite.test.js)
+const serverModule = process.env.APP_SERVER_MODULE ? pathToFileURL(resolve(process.env.APP_SERVER_MODULE)).href : "../server/app.js";
+export const { createApp } = await import(serverModule);
 
 export const tmpDb = () => join(mkdtempSync(join(tmpdir(), "pair-test-")), "pair.sqlite");
 

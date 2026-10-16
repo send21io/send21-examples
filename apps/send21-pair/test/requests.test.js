@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { createApp } from "../server/app.js";
 import { apiProvider, demoProvider, mockProvider } from "../server/send21.js";
-import { key, pair, start, tmpDb, user } from "./helpers.js";
+import { createApp, key, pair, start, tmpDb, user } from "./helpers.js";
 
 const ALEX = { "usdc-sol": "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU", "btc": "tb1qtkf5lt02n082smkkfmfvce4p3p4nc6trhkfrx5" };
 const SAM = { "usdc-sol": "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM", "eurc-base": "0x1111111111111111111111111111111111111111" };

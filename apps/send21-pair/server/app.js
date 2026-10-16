@@ -31,11 +31,17 @@ class HttpError extends Error {
  * @param {boolean} [config.push] send real Web Push (default true)
  * @param {string} [config.vapidFile]
  * @param {typeof fetch} [config.fetch] for tests
+ * @param {Array<string|{dir: string, only?: string[]}>} [config.webDirs] static roots, searched in
+ *   order. A white-label app puts its own web/ first, then this app's web/ limited with `only` to
+ *   the shared folders (lib/, vendor/).
+ * @param {string} [config.memoPrefix] shown in the payer's wallet memo (default "send21 pair")
+ * @param {string} [config.bootGlobal] window global that config.js sets (default "SEND21_PAIR")
+ * @param {string} [config.liveEnv] env var named in the api-mode safety error (default "PAIR_ALLOW_LIVE")
  */
 export function createApp(config) {
   const mode = config.mode ?? "mock";
   if (mode === "api" && !config.allowLive) {
-    throw new Error("api mode uses send21's LIVE networks (send21 accounts have no testnets). Set PAIR_ALLOW_LIVE=1 if you really mean it.");
+    throw new Error(`api mode uses send21's LIVE networks (send21 accounts have no testnets). Set ${config.liveEnv ?? "PAIR_ALLOW_LIVE"}=1 if you really mean it.`);
   }
   if (mode === "api" && !config.webhookSecret) throw new Error("SEND21_WEBHOOK_SECRET is required in api mode");
   const webhookSecret = config.webhookSecret ?? token(32);
@@ -45,6 +51,9 @@ export function createApp(config) {
   const vapid = pushOn && config.vapidFile ? loadVapid(config.vapidFile) : pushOn ? loadVapid(join(config.dataDir ?? "data", "vapid.json")) : null;
   const fetchImpl = config.fetch ?? globalThis.fetch;
   const log = config.log ?? ((...a) => console.log(...a));
+  const webDirs = config.webDirs?.length ? config.webDirs : [WEB_DIR];
+  const memoPrefix = config.memoPrefix ?? "send21 pair";
+  const bootGlobal = /^[A-Za-z_$][\w$]*$/.test(config.bootGlobal ?? "") ? config.bootGlobal : "SEND21_PAIR";
 
   // ---- statements -------------------------------------------------------
   const q = {
@@ -230,7 +239,7 @@ export function createApp(config) {
     if (!assetId) throw new HttpError(409, `${receiver.name} hasn't added a wallet address yet`);
     const receiverAddress = addresses[assetId];
     const id = randomUUID();
-    const memo = `send21 pair ${id.slice(0, 8)}${note ? `: ${note}` : ""}`.slice(0, 100);
+    const memo = `${memoPrefix} ${id.slice(0, 8)}${note ? `: ${note}` : ""}`.slice(0, 100);
     let d;
     let paymentRequestId = null;
     let optionsJson = null;
@@ -465,7 +474,8 @@ export function createApp(config) {
   };
 
   const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8",
-    ".svg": "image/svg+xml", ".png": "image/png", ".webmanifest": "application/manifest+json", ".json": "application/json" };
+    ".svg": "image/svg+xml", ".png": "image/png", ".webmanifest": "application/manifest+json", ".json": "application/json",
+    ".woff2": "font/woff2", ".txt": "text/plain; charset=utf-8" };
   const SECURITY = {
     "Content-Security-Policy": "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
     "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer", "X-Frame-Options": "DENY",
@@ -473,11 +483,15 @@ export function createApp(config) {
   async function serveStatic(res, pathname) {
     const rel = normalize(decodeURIComponent(pathname === "/" ? "/index.html" : pathname)).replace(/^([/\\])+/, "");
     if (rel.startsWith("..")) throw new HttpError(404, "Not found");
-    const file = join(WEB_DIR, rel);
-    let body;
-    try { body = await readFile(file); } catch { throw new HttpError(404, "Not found"); }
+    let file, body;
+    for (const root of webDirs) {
+      const { dir, only } = typeof root === "string" ? { dir: root } : root;
+      if (only && !only.some((pre) => rel.startsWith(pre))) continue;
+      try { file = join(dir, rel); body = await readFile(file); break; } catch { body = undefined; }
+    }
+    if (body === undefined) throw new HttpError(404, "Not found");
     let out = body;
-    if (rel === "config.js") out = Buffer.from(`window.SEND21_PAIR = { backend: "server", mode: ${JSON.stringify(mode)} };\n`);
+    if (rel === "config.js") out = Buffer.from(`window.${bootGlobal} = { backend: "server", mode: ${JSON.stringify(mode)} };\n`);
     res.writeHead(200, { "Content-Type": TYPES[extname(file)] ?? "application/octet-stream", "Cache-Control": rel === "sw.js" || rel === "config.js" ? "no-cache" : "public, max-age=300", ...SECURITY });
     res.end(out);
   }

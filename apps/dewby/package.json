@@ -1,0 +1,19 @@
+{
+  "name": "dewby",
+  "version": "0.1.0",
+  "private": true,
+  "description": "White-label TESTNET example on send21: a fresh, light P2P money app (request, pay, split, QR) that reuses send21-pair's server and payment logic with its own brand.",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "start": "node server/server.js",
+    "demo": "APP_MODE=demo node server/server.js",
+    "test": "node --test \"test/**/*.test.js\"",
+    "brand": "node scripts/brand.js",
+    "build:pages": "node scripts/build-pages.js",
+    "screenshots": "node scripts/screenshots.js"
+  }
+}
