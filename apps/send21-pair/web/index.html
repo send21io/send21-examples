@@ -8,6 +8,9 @@
        forced dark modes (Samsung Internet, Chrome auto dark) treat the page as light and repaint it. theme.js
        switches this to "light only" when the user picks light mode. -->
   <meta name="color-scheme" content="dark only">
+  <!-- GitHub Pages sends no headers, so the policy rides in the page. The Node server sends the same as a header. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; font-src 'self'; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
+  <meta name="referrer" content="no-referrer">
   <meta name="description" content="send21 pair: ask friends for money and pay them back. You sign in your own wallet. Testnet prototype.">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="send21 pair">
@@ -20,8 +23,8 @@
   <script src="theme.js"></script>
 </head>
 <body>
-  <div class="testnet" role="note"><span>TESTNET</span><span class="sr"> · test money only, nothing here has value</span></div>
-  <main id="app" tabindex="-1" aria-live="polite"></main>
+  <aside class="testnet" aria-label="Test mode"><span>TESTNET</span><span class="sr"> · test money only, nothing here has value</span></aside>
+  <main id="app" tabindex="-1"><div class="skel" aria-busy="true" aria-label="Loading"><span class="sk sk-bar"></span><span class="sk sk-circle"></span><span class="sk sk-line w60"></span><span class="sk sk-big"></span><span class="sk sk-line w40"></span><span class="sk sk-btn"></span></div></main>
   <div id="toast" role="status" aria-live="polite"></div>
   <noscript><p class="pad">send21 pair needs JavaScript.</p></noscript>
   <script src="config.js"></script>

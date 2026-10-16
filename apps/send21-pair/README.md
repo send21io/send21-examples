@@ -25,7 +25,7 @@ Why these: they are the moments people actually ask each other for money, and th
 
 ## Look and feel
 
-A consumer money app for people around 18 to 30: dark by default (light mode in Settings or the sun/moon button), bold type, big tap targets (48 px and up), glassy cards and orange gradients on the send21 colors (orange `#F7931A`, cream `#FEF8EC`, charcoal `#1B1C20`). One inline SVG icon set (`web/icons.js`), one- to three-word labels. Onboarding is three swipeable cards. A check burst and light confetti when something is paid, a glowing QR card for pairing, a progress ring for splits, a TESTNET badge that never scrolls away. Animations stop under `prefers-reduced-motion`. Text meets WCAG AA contrast in both themes; icon-only buttons have `aria-label`s; everything works with the keyboard (the carousel takes arrow keys). Mobile first at 390×844; on desktop the app sits in a centered glass column.
+A consumer money app for people around 18 to 30: dark by default (light mode in Settings), bold type, big tap targets (44 px minimum, most 48 px and up), glassy cards and orange gradients on the send21 colors (orange `#F7931A`, cream `#FEF8EC`, charcoal `#1B1C20`). One inline SVG icon set (`web/icons.js`, one stroke width), one- to three-word labels, and type and spacing tokens (`--fs-*`, `--s1`…`--s8`) in `web/styles.css`. Onboarding is three swipeable cards. A check burst, light confetti and a short vibration (where the phone supports `navigator.vibrate`) when something is paid; copy buttons turn into *Copied*; screens load behind a skeleton instead of a blank page; a glowing QR card for pairing, a progress ring for splits, a TESTNET badge that never scrolls away. Animations stop under `prefers-reduced-motion`. Text meets WCAG AA contrast in both themes; icon-only buttons have `aria-label`s; a new screen moves focus to its heading; everything works with the keyboard (the carousel takes arrow keys). axe reports 0 violations on every screen. Mobile first at 390×844; on desktop the app sits in a centered glass column.
 
 ## Simplicity decisions
 
@@ -33,7 +33,7 @@ A consumer money app for people around 18 to 30: dark by default (light mode in 
 - **Four big actions:** *Request*, *Pay*, *Split*, *QR*, under a summary card with what you're owed in your own currency. Contacts are a row of avatars. A short activity list.
 - **Local money first.** You type in your currency (taken from the phone's locale, changeable). The crypto amount is the smaller second line: `≈ 11.32 USDC · Solana Devnet`.
 - **The app picks the asset**: the cheapest and fastest the receiver accepts. Lightning, then USDC/EURC on Solana (EURC first for EUR amounts), Base, on-chain BTC, Ethereum.
-- **Plain status:** a chip with an icon and one word (*Waiting*, *Paying*, *Paid*, *Check*, *Expired*); screen readers get the full sentence (*Waiting for Sam to pay*).
+- **Plain status:** a chip with an icon and one word (*Waiting*, *To pay*, *Paying*, *Paid*, *Mismatch*, *Expired*, *Cancelled*); never color alone; screen readers get the full sentence (*Waiting for Sam to pay*).
 - **Pairing is one scan** with the phone's own camera (an in-app scanner is offered where `BarcodeDetector` exists), then one tap, *Add Alex*. Both sides see each other.
 - **Links work without the app.** A request link opens a plain page with the amount, the receiver's name, *Open wallet* and a QR.
 - **Browser forced dark modes.** Samsung Internet's default dark mode (like Android WebView's FORCE_DARK_ONLY) repaints every page and ignores `color-scheme`, turning orange fills maroon and dark text white. The app detects it (a `color-scheme: light only` probe whose `Canvas` color isn't white) and switches to a palette that survives: dark fills, the orange as text, icons and an SVG outline, and QR codes as images. Screenshots 16 and 17; preview it anywhere with `?fd`.
@@ -44,8 +44,24 @@ A consumer money app for people around 18 to 30: dark by default (light mode in 
 1. Alex requests 120 SEK from Sam. The backend copies Alex's address for the chosen asset from Alex's profile and creates the draft (`POST /api/v1/drafts` with an `Idempotency-Key`), or in mock mode simulates it.
 2. Sam gets a Web Push notification (or an in-app notice over SSE while the app is open). Tapping it opens the pay screen.
 3. *Open wallet* is a standard deep link with the amount and address prefilled: BIP-21 `bitcoin:`, Solana Pay `solana:` (with `spl-token`), EIP-681 `ethereum:…@chainId/transfer`, or `lightning:`. A QR of the same link is there for a wallet on another device, plus *Copy address* / *Copy amount*.
-4. send21 sees the transfer and calls the webhook. The backend verifies `X-Send21-Signature-V2` (HMAC over `<t>.<delivery id>.<raw body>`, 5-minute window), and in **one SQLite transaction** stores the `X-Send21-Delivery` id and updates the request (the pattern from [webhook-receiver-sqlite](../../examples/webhook-receiver-sqlite)). `draft.confirmed` marks it paid only when the draft id, currency, network and amount match what was stored; anything else goes to *Check the amount*. A status never moves backwards.
+4. send21 sees the transfer and calls the webhook. The backend verifies `X-Send21-Signature-V2` (HMAC over `<t>.<delivery id>.<raw body>`, 5-minute window), and in **one SQLite transaction** stores the `X-Send21-Delivery` id and updates the request (the pattern from [webhook-receiver-sqlite](../../examples/webhook-receiver-sqlite)). `draft.confirmed` marks it paid only when the draft id, currency, network and amount match what was stored; anything else (or a delivery with no amount) goes to *Mismatch*. A status never moves backwards, and *Paid*, *Expired* and *Cancelled* are final.
 5. Both phones update live (SSE) and get *Paid ✓*.
+
+Throughout, the payer's own wallet signs and broadcasts the transfer. send21 never signs, never broadcasts and never holds the money; it watches the chain and tells this backend.
+
+## Safety rules
+
+- **Webhook signature:** only `X-Send21-Signature-V2` is accepted (HMAC-SHA256 over `<timestamp>.<delivery id>.<raw body>`, timestamp within 300 s). The body-only legacy header is refused on its own because it can be replayed.
+- **Duplicates, twice over:** send21 dedupes its own deliveries, and this receiver also runs its own check: the `X-Send21-Delivery` id is stored in the same SQLite transaction as the status change, so a retry or a replay changes nothing, even after a restart.
+- **The stored request decides:** a delivery marks a request paid only if its draft id, amount (base units), asset and network match what this server stored when the request was made. Anything else is a *Mismatch*.
+- **Closed is final:** *Paid*, *Expired* and *Cancelled* never change again. Requests expire after 72 hours.
+- **Payment after close (done, in mock, demo and api):** money that arrives for a request that is already paid (another transaction), expired or cancelled doesn't reopen it. The request keeps its state, the transaction id is stored, both sides see a *Payment after close* card with the tx id (copyable) and the closed state, and the receiver gets a notification. Any refund is the receiver's call, from their own wallet. Try it in mock mode with *Simulate a payment after close* on a closed request.
+- **Input:** amounts are parsed strictly (digits and one `.` or `,`; no exponents, signs, hex or group separators), with the currency's own decimals (0 for JPY, 2 for SEK), more than 0 and at most 10 000. The amount field filters as you type and says what's wrong. Names and notes are NFC-normalized and lose control, zero-width and bidi-override characters (so `\u202Eyaps` can't pass as another name), then are capped (40 / 80 characters). Data from links (contact cards, requests, receipts) is checked field by field; a broken link shows *Link not working*. Wallet links must be `solana:`, `bitcoin:`, `ethereum:`, `lightning:` or `https:`.
+- **No HTML injection:** everything typed or received is escaped before it reaches the page; tests put markup in a name and check it stays text.
+- **Double taps:** a button or form works once at a time, a sent form stays locked, and each request form carries an idempotency key (server and Pages mock), so a double tap makes one request.
+- **Rate limits:** per client token bucket on writes (60/min), sign-ups (6/min) and the webhook (600/min). Over the limit: `429` with `Retry-After`; the app says *Too many tries. Wait N s and try again.* Behind a proxy set `PAIR_TRUST_PROXY=1` to use `X-Forwarded-For`.
+- **CSP:** `default-src 'self'`, no inline or remote scripts, `object-src 'none'`, `base-uri 'self'`, sent as a header by the server and as a `<meta>` on GitHub Pages. No secrets in the browser: the send21 key and webhook secret live only on the server.
+- **ETH on Base:** in `api` mode the pay screen says that send21 detects native ETH on Base by balance and the receiver confirms the payment with a click.
 
 Why two taps: no mobile OS lets a notification or a web page open another app without a user gesture, and a service worker can only open `http(s)` pages. So it's notification, tap, *Open wallet*, sign. That's the floor today. More in [DESIGN.md](DESIGN.md#3-honest-constraints).
 
@@ -56,7 +72,7 @@ Needs Node.js 22.13 or newer (Node 24 recommended, no warnings). No `npm install
 ```sh
 cd apps/send21-pair
 npm start            # mock mode on http://localhost:8787
-npm test             # 28 tests, no network needed
+npm test             # 48 tests, no network needed
 ```
 
 Two users in one browser: open `http://localhost:8787/?as=alex` and `http://localhost:8787/?as=sam` in two windows (each `?as=` keeps its own device token). Make a name in each, open *My code* in one and paste the link into the other, tap *Add*, request an amount, and on the other side tap *Simulate payment*. The simulated payment is a signed `draft.seen` and `draft.confirmed` delivery that goes through the real verification and dedupe code, including one repeated delivery that gets ignored.
@@ -123,13 +139,18 @@ screenshots/           PNGs at a 390×844 phone viewport
 
 ## Tests
 
-`npm test` runs 28 tests with no network:
+`npm test` runs 48 tests with no network:
 
 - **Pairing:** the link adds a mutual contact after one confirm, the pair page shows only name and color, contacts never expose addresses, own/unknown/reset codes are refused, only contacts can be asked.
 - **Requests:** the draft goes to the receiver's own address from their profile (extra address fields from the browser are ignored), the smart default, idempotency (the same key twice, even concurrently, makes one request and one send21 `Idempotency-Key`; a changed amount is 422), split shares, the exact `POST /api/v1/drafts` and `POST /api/v1/payment-requests` bodies and headers, refusing a draft that comes back with another address, the demo request body, and `api` mode refusing to start without `PAIR_ALLOW_LIVE`.
 - **Webhooks:** V2 valid / wrong secret / older than 300 s / missing / legacy-only / tampered body, dedupe on `X-Send21-Delivery` that survives a restart, amount, currency and network mismatches go to review, `draft.amount_mismatch` and an accepted different amount, no backwards moves.
 - **End to end (mock):** pair, request, notification over SSE, pay screen without login, simulated signed webhooks, *Paid ✓* on both sides; the open QR link; demo-mode polling; Web Push encrypted and VAPID-signed to a fake push service and decrypted again.
+- **Safety:** payment after cancel, after paid (another tx) and on expiry, each shown once and never reopening the request; a delivery with no amount; names stripped of invisible and bidi characters on the server; 14 bad amounts refused server-side; 429 with `Retry-After`; simulated outcomes (unknown, late on an open request, expire, a double tap); the 72 h expiry sweep; an older database gaining the new columns.
+- **Fuzzing:** 20 000 random amount strings and numbers through `parseAmount` (never throws; every accepted value is finite, positive, capped and correctly rounded), 20 000 through the live amount filter, 20 000 random names through `cleanText` (no invisible or bidi characters survive, capped, idempotent), plus `safeHref`, ids, colors and the state machine.
+- **Links (Pages mock):** a request link with any tampered field is refused, names and colors from links are cleaned, double-tap simulation, closed stays closed, a receipt for a closed request is a payment after close, idempotent form keys.
 - **Deep links** match, character for character, the `paymentUri` values send21's testnet demo returns.
+
+A browser smoke test walks every flow on the Pages build (onboarding, pairing, amount filter, double tap, guest pay, paid and receipt, mismatch, cancel and payment after close, expiry, history filters, markup in a name, broken link, offline, `?fd`, zero console errors; with `AXE_PATH` also axe on each screen): `PLAYWRIGHT_MODULE=… CHROME_PATH=… node scripts/smoke-browser.js <url>`.
 
 The same suite runs against a white-label server wrapper with `APP_SERVER_MODULE=<path to its server/app.js> npm test`.
 
@@ -158,7 +179,7 @@ Regenerate with `npm i --no-save playwright-core && CHROME_PATH=/path/to/chrome 
 - Wallet deep links depend on the phone: the default handler for `solana:`, `bitcoin:` or `ethereum:` opens. Some wallets only scan EIP-681 QR codes and don't register `ethereum:`.
 - iOS web push needs iOS 16.4+ and the app added to the Home Screen.
 - The GitHub Pages demo has no server: one-way pairing per scan, manual receipt links, no push.
-- Prototype security: the device token sits in `localStorage` and is sent as a query parameter for SSE; there is no rate limiting, no account deletion on the server and no abuse handling. A production version needs these, plus a review of who may add whom.
+- Prototype security: the device token sits in `localStorage` and is sent as a query parameter for SSE; there are basic rate limits but no account deletion on the server and no abuse handling. A production version needs these, plus a review of who may add whom.
 - One currency per user, 28 currencies in the mock rate table (send21 itself prices in 161).
 
 ## Credits

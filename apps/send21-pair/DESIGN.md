@@ -29,7 +29,7 @@ Real people don't think in assets and networks. They think "Anna owes me 120 kro
 2. **Four big actions.** The home screen has a summary card (owed to you, in your currency), *Request*, *Pay*, *Split* and *QR* as big icon buttons, the contacts as avatars, and a short activity list.
 3. **Local money first.** You type `120`, in your currency (detected from the phone's locale: sv-SE gives SEK, de-DE gives EUR). The crypto amount is the second, smaller line ("≈ 11.42 USDC").
 4. **The app picks the asset.** The receiver lists what they accept; the app picks the cheapest and fastest of those: Lightning, then USDC or EURC on Solana (EURC first when the amount is in EUR), then Base, then on-chain BTC, then Ethereum. Nobody chooses a network unless they open "Other ways to pay".
-5. **Plain status.** A chip with an icon and one word ("Waiting", "Paying", "Paid", "Check", "Expired"), with the full sentence ("Waiting for Bo to pay") for screen readers. Never `AwaitingPayment`.
+5. **Plain status.** A chip with an icon and one word ("Waiting", "Paying", "Paid", "Mismatch", "Expired", "Cancelled"), with the full sentence ("Waiting for Bo to pay") for screen readers. Never `AwaitingPayment`.
 6. **Contacts are faces.** Colored avatars with initials. Tap a face, type an amount, done.
 7. **Pairing is one scan.** Your code is a QR plus a link (`/p/<code>`). The phone's own camera opens it, the other side taps "Add Anna", and both of you see each other. No in-app scanner needed (one is offered where the browser has `BarcodeDetector`).
 8. **Links work without the app.** A request link opens a plain web page with the amount, the receiver's name, a big *Open wallet* button and a QR. The payer does not need the app or a name to pay.
@@ -147,7 +147,7 @@ sequenceDiagram
   S-->>B: "Paid ✓"
 ```
 
-Request states: `awaiting` (Waiting for Bo to pay), `seen` (Bo is paying…, on `draft.seen`), `paid` (on `draft.confirmed` that matches the stored draft id, asset, network and amount), `review` (on `draft.amount_mismatch` or a confirmation that doesn't match: "Check the amount"), `expired`, `cancelled`. A state never moves backwards; a late `draft.seen` after `paid` is ignored.
+Request states: `awaiting` (Waiting for Bo to pay), `seen` (Bo is paying…, on `draft.seen`), `paid` (on `draft.confirmed` that matches the stored draft id, asset, network and amount), `review` (on `draft.amount_mismatch` or a confirmation that doesn't match: "Mismatch"; a delivery without an amount is a mismatch too), `expired`, `cancelled`. A state never moves backwards; a late `draft.seen` after `paid` is ignored. Paid, expired and cancelled are final; money for a closed request (another tx after paid, or any tx after expired or cancelled) is stored as a *payment after close* (tx id, closed state, time) and shown on both sides without reopening it.
 
 ## 5. Privacy
 

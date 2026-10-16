@@ -192,7 +192,7 @@ export function statusText(req, me) {
     case "paid":
       return "Paid ✓";
     case "review":
-      return iAmReceiver ? "Check the amount" : `Sent. ${other} is checking the amount`;
+      return iAmReceiver ? "Amount mismatch: check your wallet" : `Sent, but the amount didn't match. ${other} will check`;
     case "expired":
       return "Expired";
     case "cancelled":
@@ -261,4 +261,98 @@ export function randomId() {
   b[8] = (b[8] & 0x3f) | 0x80;
   const h = [...b].map((x) => x.toString(16).padStart(2, "0")).join("");
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+}
+
+// ---- input safety: one set of rules for the browser, the static mock and the server ----
+
+/** Largest amount one request may carry (testnet prototype: small and obvious). */
+export const MAX_AMOUNT = 10000;
+
+/** Decimals a currency is written with (JPY, KRW, CLP, VND: 0; most others: 2). */
+export function fiatDecimals(fiat) {
+  try {
+    return Math.min(2, new Intl.NumberFormat("en", { style: "currency", currency: fiat }).resolvedOptions().maximumFractionDigits);
+  } catch {
+    return 2;
+  }
+}
+
+/**
+ * Strict amount parser. Accepts digits with at most one "." or "," and the currency's own
+ * decimals; refuses exponents, hex, signs, group separators and anything else instead of
+ * guessing. Numbers (from JSON) go through the same rules.
+ * @returns {{ ok: true, value: number } | { ok: false, error: string, empty?: boolean }}
+ */
+export function parseAmount(input, fiat = "USD", { max = MAX_AMOUNT } = {}) {
+  if (typeof input === "number") {
+    if (!Number.isFinite(input)) return { ok: false, error: "Enter an amount" };
+    input = String(input);
+    if (/e/i.test(input)) return { ok: false, error: "Enter an amount" };
+  }
+  if (typeof input !== "string") return { ok: false, error: "Enter an amount", empty: true };
+  const s = input.replace(/[\s\u00A0\u202F]/g, "");
+  if (!s) return { ok: false, error: "Enter an amount", empty: true };
+  const m = s.match(/^(\d{1,7})(?:[.,](\d*))?$/);
+  if (!m) return { ok: false, error: "Numbers only, like 12.50" };
+  const dec = fiatDecimals(fiat);
+  const frac = m[2] ?? "";
+  if (frac.length > dec) return { ok: false, error: dec === 0 ? `No decimals in ${fiat}` : `Max ${dec} decimals` };
+  const value = Number(`${m[1]}.${frac || "0"}`);
+  if (!(value > 0)) return { ok: false, error: "More than 0, please" };
+  if (value > max) return { ok: false, error: `Max ${max.toLocaleString("en").replace(/,/g, " ")} ${fiat}` };
+  return { ok: true, value: Math.round(value * 10 ** dec) / 10 ** dec };
+}
+
+/** Live input filter for the amount field: keeps digits and one separator, caps the decimals. */
+export function sanitizeAmountInput(raw, fiat = "USD") {
+  const dec = fiatDecimals(fiat);
+  let s = String(raw ?? "").replace(/[^\d.,]/g, "");
+  const i = s.search(/[.,]/);
+  if (i >= 0) s = s.slice(0, i + 1) + s.slice(i + 1).replace(/[.,]/g, "");
+  let [whole, frac] = i >= 0 ? [s.slice(0, i), s.slice(i + 1)] : [s, null];
+  whole = whole.replace(/^0+(?=\d)/, "").slice(0, 5);
+  if (frac === null) return whole;
+  if (dec === 0) return whole;
+  return `${whole || "0"}${s[i]}${frac.slice(0, dec)}`;
+}
+
+// Control characters, zero-width characters and bidi overrides: they can make a name read backwards
+// ("\u202Eyaps" shows as "spay") or look like someone else's.
+const UNSAFE_TEXT = /[\u0000-\u001F\u007F-\u009F\u00AD\u061C\u180E\u200B-\u200F\u2028-\u202E\u2060-\u206F\uFEFF\uFFF9-\uFFFB]/g;
+/** Names and notes: NFC, no invisible or direction-changing characters, single spaces, capped length. */
+export function cleanText(input, max = 40) {
+  const s = String(input ?? "").normalize("NFC").replace(/[\t\n\r\v\f\u2028\u2029]/g, " ").replace(UNSAFE_TEXT, "").replace(/\s+/g, " ").trim();
+  return [...s].slice(0, max).join("").trim();
+}
+export const validColor = (c) => typeof c === "string" && /^#[0-9A-Fa-f]{6}$/.test(c);
+export const validId = (s) => typeof s === "string" && /^[A-Za-z0-9_-]{6,64}$/.test(s);
+
+/** Only wallet schemes and https may become a link the payer taps. */
+export function safeHref(uri) {
+  const s = String(uri ?? "");
+  return /^(solana|bitcoin|ethereum|lightning):[^\s"'<>`]+$/i.test(s) || /^https:\/\/[^\s"'<>`]+$/i.test(s) ? s : null;
+}
+
+/** An address split into groups of four for reading it back, character by character. */
+export function addressGroups(address) {
+  return String(address ?? "").match(/.{1,4}/g) ?? [];
+}
+
+// ---- status vocabulary: one word and one icon per state, everywhere ----
+export const STATUS_WORD = { awaiting: "Waiting", seen: "Paying", paid: "Paid", review: "Mismatch", expired: "Expired", cancelled: "Cancelled" };
+export function statusWord(status, iAmReceiver = true) {
+  if (status === "awaiting" && !iAmReceiver) return "To pay";
+  return STATUS_WORD[status] ?? String(status);
+}
+
+/** Requests stay open for 72 hours (the same as the mock drafts). */
+export const REQUEST_TTL_MS = 72 * 3600_000;
+/** "2 d", "5 h", "12 min" until `expiresAt`, or null once it's past. */
+export function timeLeft(expiresAt, now = Date.now()) {
+  const ms = Number(expiresAt) - now;
+  if (!Number.isFinite(ms) || ms <= 0) return null;
+  const min = Math.ceil(ms / 60_000);
+  if (min < 60) return `${min} min`;
+  const h = Math.floor(min / 60);
+  return h < 48 ? `${h} h` : `${Math.floor(h / 24)} d`;
 }

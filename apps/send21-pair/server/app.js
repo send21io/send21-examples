@@ -3,7 +3,8 @@ import { readFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  ASSETS, FIATS, FINAL, assetsFor, avatarColor, canMove, cryptoLine, networkOf, pickAsset, splitAmount, statusText, validAddress, DEMO_ADDRESSES,
+  ASSETS, FIATS, FINAL, MAX_AMOUNT, REQUEST_TTL_MS, assetsFor, avatarColor, canMove, cleanText, cryptoLine, networkOf, parseAmount, pickAsset, splitAmount, statusText,
+  validAddress, DEMO_ADDRESSES,
 } from "../web/lib/core.js";
 import { openDb, tx } from "./db.js";
 import { makeProvider, Send21Error } from "./send21.js";
@@ -12,13 +13,29 @@ import { loadVapid, sendPush } from "./webpush.js";
 
 const WEB_DIR = fileURLToPath(new URL("../web/", import.meta.url));
 const MAX_BODY = 64 * 1024;
-const MAX_AMOUNT = 10000; // testnet prototype: keep amounts small and obvious
 const now = () => Date.now();
 const sha256 = (s) => createHash("sha256").update(s).digest("hex");
 const token = (n = 24) => randomBytes(n).toString("base64url");
 
 class HttpError extends Error {
-  constructor(status, message) { super(message); this.status = status; }
+  constructor(status, message, headers = {}) { super(message); this.status = status; this.headers = headers; }
+}
+
+/**
+ * Per-client token buckets: `rate` requests per minute with a burst of `burst`. In memory, per
+ * process: enough for a prototype; put a shared limiter (or the proxy's) in front in production.
+ */
+export function rateLimiter({ rate, burst }) {
+  const buckets = new Map();
+  return (key, t = Date.now()) => {
+    let b = buckets.get(key);
+    if (!b) { b = { tokens: burst, at: t }; buckets.set(key, b); }
+    b.tokens = Math.min(burst, b.tokens + ((t - b.at) / 60_000) * rate);
+    b.at = t;
+    if (buckets.size > 10_000) for (const [k, v] of buckets) if (v.tokens >= burst) buckets.delete(k);
+    if (b.tokens >= 1) { b.tokens -= 1; return 0; }
+    return Math.ceil(((1 - b.tokens) / rate) * 60); // seconds until the next token
+  };
 }
 
 /**
@@ -54,6 +71,12 @@ export function createApp(config) {
   const webDirs = config.webDirs?.length ? config.webDirs : [WEB_DIR];
   const memoPrefix = config.memoPrefix ?? "send21 pair";
   const bootGlobal = /^[A-Za-z_$][\w$]*$/.test(config.bootGlobal ?? "") ? config.bootGlobal : "SEND21_PAIR";
+  // Rate limits per client IP (or X-Forwarded-For behind PAIR_TRUST_PROXY): writes, sign-ups and the webhook.
+  const limits = config.rateLimit === false ? null : {
+    write: rateLimiter({ rate: 60, burst: 30, ...config.rateLimit?.write }),
+    signup: rateLimiter({ rate: 6, burst: 10, ...config.rateLimit?.signup }),
+    webhook: rateLimiter({ rate: 600, burst: 200, ...config.rateLimit?.webhook }),
+  };
 
   // ---- statements -------------------------------------------------------
   const q = {
@@ -79,6 +102,8 @@ export function createApp(config) {
     requestByPaymentRequest: db.prepare("SELECT * FROM requests WHERE payment_request_id = ?"),
     requestByIdem: db.prepare("SELECT * FROM requests WHERE idempotency_key = ?"),
     setStatus: db.prepare("UPDATE requests SET status = ?, tx_id = COALESCE(?, tx_id), review_note = COALESCE(?, review_note), updated_at = ? WHERE id = ?"),
+    setLate: db.prepare("UPDATE requests SET late_tx_id = ?, late_state = ?, late_event = ?, late_amount = ?, late_at = ?, updated_at = ? WHERE id = ?"),
+    dueMock: db.prepare("SELECT * FROM requests WHERE source = 'mock' AND status IN ('awaiting', 'seen') AND expires_at IS NOT NULL AND expires_at <= ?"),
     activity: db.prepare(`SELECT r.*, ru.name AS receiver_name, ru.color AS receiver_color, pu.name AS payer_name, pu.color AS payer_color, s.title AS split_title, s.parts AS split_parts
       FROM requests r JOIN users ru ON ru.id = r.to_user LEFT JOIN users pu ON pu.id = r.from_user LEFT JOIN splits s ON s.id = r.split_id
       WHERE r.to_user = ? OR r.from_user = ? ORDER BY r.created_at DESC LIMIT 60`),
@@ -141,8 +166,9 @@ export function createApp(config) {
   }
 
   function cleanName(name) {
-    const s = String(name ?? "").replace(/\s+/g, " ").trim();
-    if (!s || s.length > 40) throw new HttpError(400, "A name of 1 to 40 characters, please");
+    // No control, zero-width or bidi-override characters (a name must not read as someone else's).
+    const s = cleanText(name, 41);
+    if (!s || [...s].length > 40) throw new HttpError(400, "A name of 1 to 40 characters, please");
     return s;
   }
   function cleanFiat(f) {
@@ -162,6 +188,7 @@ export function createApp(config) {
     for (const [asset, address] of Object.entries(addresses)) if (address) q.upsertAddress.run(userId, asset, String(address).trim());
   }
 
+  const lateOf = (r) => r.late_tx_id ? { tx_id: r.late_tx_id, state: r.late_state, event: r.late_event, amount: r.late_amount, at: r.late_at } : null;
   function view(r, me) {
     const c = r.amount_base_units ? cryptoLine(r.amount_base_units, r.asset, mode) : null;
     return {
@@ -170,7 +197,7 @@ export function createApp(config) {
       receiver_name: r.receiver_name, receiver_color: r.receiver_color, payer_name: r.payer_name, payer_color: r.payer_color,
       fiat: r.fiat, fiat_amount: r.fiat_amount, note: r.note, asset: r.asset, crypto: c,
       status: r.status, status_text: statusText(r, me), tx_id: r.tx_id, review_note: r.review_note,
-      created_at: r.created_at, updated_at: r.updated_at,
+      created_at: r.created_at, updated_at: r.updated_at, expires_at: r.expires_at, late: lateOf(r),
       // Only the people in the request get the link (with its secret).
       pay_path: `/r/${r.id}?k=${r.pay_key}`,
     };
@@ -193,6 +220,7 @@ export function createApp(config) {
       crypto: r.amount_base_units ? cryptoLine(r.amount_base_units, r.asset, mode) : null,
       receiver_address: r.receiver_address, payment_uri: r.payment_uri, pay_url: r.pay_url,
       source: r.source, testnet: r.source !== "api", tx_id: r.tx_id, review_note: r.review_note, expires_at: r.expires_at,
+      late: lateOf(r),
     };
   }
 
@@ -215,7 +243,10 @@ export function createApp(config) {
       notify(r.to_user, { title: `${payer?.name ?? "Someone"} paid ✓`, body: `${amount}${r.note ? ` · ${r.note}` : ""}`, url, tag: r.id });
       if (payer) notify(payer.id, { title: "Paid ✓", body: `${amount} to ${receiver.name}`, url, tag: r.id });
     } else if (status === "review") {
-      notify(r.to_user, { title: "Check the amount", body: `A payment for ${amount} arrived with a different amount or asset`, url, tag: r.id });
+      notify(r.to_user, { title: "Amount mismatch", body: `A payment for ${amount} arrived with a different amount or asset. Check your wallet.`, url, tag: r.id });
+    } else if (status === "late") {
+      const fresh = q.requestById.get(r.id);
+      notify(r.to_user, { title: "Payment after close", body: `${amount} arrived after this request was ${fresh.late_state}. Check your wallet.`, url, tag: `${r.id}-late` });
     } else if (status === "seen") {
       notify(r.to_user, { title: `${payer?.name ?? "Someone"} is paying…`, body: amount, url, tag: r.id });
     }
@@ -262,7 +293,7 @@ export function createApp(config) {
     try {
       q.insertRequest.run(id, kind, splitId ?? null, payer?.id ?? null, receiver.id, creator.id, fiat, amount, note ?? null, assetId,
         d.network, d.currency, d.receiverAddress, d.amountBaseUnits, d.draftId, d.paymentUri, d.payUrl, paymentRequestId, optionsJson,
-        idemKey, token(18), mode, d.expiresAt ?? null, t, t);
+        idemKey, token(18), mode, d.expiresAt ?? t + REQUEST_TTL_MS, t, t);
     } catch (err) {
       const again = q.requestByIdem.get(idemKey); // a concurrent double tap won the race
       if (again) return { row: again, created: false };
@@ -275,9 +306,11 @@ export function createApp(config) {
     const kind = body.kind;
     if (!["request", "send", "link"].includes(kind)) throw new HttpError(400, "kind is request, send or link");
     const fiat = cleanFiat(body.fiat ?? me.fiat);
-    const total = Math.round(Number(body.amount) * 100) / 100;
-    if (!(total > 0) || total > MAX_AMOUNT) throw new HttpError(400, `An amount between 0.01 and ${MAX_AMOUNT}, please`);
-    const note = body.note ? String(body.note).trim().slice(0, 80) : null;
+    // One strict parser for the browser and the server: digits, one separator, the currency's own decimals.
+    const parsed = parseAmount(body.amount, fiat, { max: MAX_AMOUNT });
+    if (!parsed.ok) throw new HttpError(400, parsed.error);
+    const total = parsed.value;
+    const note = cleanText(body.note, 80) || null;
     const clientKey = String(body.clientKey ?? "");
     if (!/^[A-Za-z0-9_-]{8,64}$/.test(clientKey)) throw new HttpError(400, "clientKey (8-64 url-safe characters) is required");
     const ids = [...new Set(Array.isArray(body.contactIds) ? body.contactIds : [])];
@@ -294,6 +327,7 @@ export function createApp(config) {
       if (ids.length < 1 || ids.length > 25) throw new HttpError(400, "Pick 1 to 25 people");
       const parts = ids.length + (ids.length > 1 && body.includeMe !== false ? 1 : 0);
       const shares = ids.length > 1 ? splitAmount(total, parts) : [total];
+      if (shares.some((x) => !(x > 0))) throw new HttpError(400, "That's too little to split");
       let splitId = null;
       if (ids.length > 1) {
         splitId = `split-${clientKey}`;
@@ -332,7 +366,9 @@ export function createApp(config) {
     }
     if (sentCurrency !== r.currency.toLowerCase()) return `paid in ${data.sentCurrency}, expected ${r.currency.toUpperCase()}`;
     if (data.network !== r.network) return `paid on ${data.network}, expected ${r.network}`;
-    if (data.amountSats !== undefined && Number(data.amountSats) !== r.amount_base_units) return `billed ${data.amountSats} base units, expected ${r.amount_base_units}`;
+    // The amount must be there and equal to what we stored. A delivery without it is not a payment we can match.
+    if (data.amountSats === undefined || data.amountSats === null) return "no amount in the delivery";
+    if (Number(data.amountSats) !== r.amount_base_units) return `billed ${data.amountSats} base units, expected ${r.amount_base_units}`;
     return null;
   }
 
@@ -360,8 +396,18 @@ export function createApp(config) {
         || (data.paymentRequestId && q.requestByPaymentRequest.get(data.paymentRequestId))
         || (data.orderId && q.requestById.get(data.orderId));
       let outcome = "ignored";
+      // Money that arrives on a request that is already closed. Closed states are final, so the
+      // request keeps its state; we record the transaction and show a "Payment after close" notice.
+      const MONEY = new Set(["draft.seen", "draft.confirmed", "draft.amount_mismatch", "draft.mismatch_unresolved", "draft.mismatch_accepted"]);
+      const isLate = r && FINAL.has(r.status) && MONEY.has(payload.event) && data.txId
+        && !(r.status === "paid" && r.tx_id === data.txId) && r.late_tx_id !== data.txId;
       if (!r) outcome = "unknown_draft";
-      else {
+      else if (isLate) {
+        target = r;
+        q.setLate.run(String(data.txId).slice(0, 200), r.status, String(payload.event), data.receivedAmount ?? data.sentAmount ?? null, now(), now(), r.id);
+        outcome = "after_close";
+        changed = "late";
+      } else {
         target = r;
         switch (payload.event) {
           case "draft.seen":
@@ -388,6 +434,11 @@ export function createApp(config) {
           case "draft.expired":
           case "payment_request.expired":
             outcome = move(r, "expired") ? ((changed = "expired"), "expired") : "no_change";
+            // Expired while a transfer with another amount was undecided: money arrived, nobody decided.
+            if (outcome === "expired" && data.receivedAmountSats !== undefined && data.txId) {
+              q.setLate.run(String(data.txId).slice(0, 200), "expired", String(payload.event), data.receivedAmount ?? null, now(), now(), r.id);
+              outcome = "expired_with_payment";
+            }
             break;
           case "draft.cancelled":
             outcome = move(r, "cancelled") ? ((changed = "cancelled"), "cancelled") : "no_change";
@@ -415,12 +466,21 @@ export function createApp(config) {
   }
   function simulatePayment(r, outcome = "ok") {
     const a = ASSETS[r.asset];
+    if (outcome === "expire") {
+      const d = simulatedDelivery("draft.expired", { draftId: r.draft_id, status: "Expired", network: r.network });
+      return handleWebhook(d.raw, d.headers);
+    }
     const base = {
       draftId: r.draft_id, network: r.network, sentCurrency: a.currency.toUpperCase(), amountSats: r.amount_base_units,
       sentAmount: cryptoLine(r.amount_base_units, r.asset, mode).exact, fiatCurrency: r.fiat, fiatAmount: r.fiat_amount,
       txId: `mock-${randomBytes(16).toString("hex")}`,
     };
     if (outcome === "wrong_amount") base.amountSats = r.amount_base_units + 1;
+    if (outcome === "late") {
+      // A payment that lands after the request was closed, through the real verification path.
+      const late = simulatedDelivery("draft.confirmed", { ...base, status: "Confirmed", confirmations: 1, occurredAt: new Date().toISOString() });
+      return handleWebhook(late.raw, late.headers);
+    }
     const seen = simulatedDelivery("draft.seen", { ...base, status: "Seen", confirmations: 0 });
     handleWebhook(seen.raw, seen.headers);
     const confirmed = simulatedDelivery("draft.confirmed", { ...base, status: "Confirmed", confirmations: 1, occurredAt: new Date().toISOString() });
@@ -431,6 +491,17 @@ export function createApp(config) {
     };
     if (delay > 0) setTimeout(run, delay).unref(); else run();
   }
+
+  const simulating = new Set();
+  // Mock mode stands in for send21's draft.expired: past-due requests get a signed expiry delivery.
+  function sweepMock() {
+    for (const r of q.dueMock.all(now())) {
+      const d = simulatedDelivery("draft.expired", { draftId: r.draft_id, status: "Expired", network: r.network });
+      try { handleWebhook(d.raw, d.headers); } catch (err) { log("expiry sweep:", err.message); }
+    }
+  }
+  const sweeper = mode === "mock" ? setInterval(sweepMock, config.sweepMs ?? 30_000) : null;
+  sweeper?.unref();
 
   // ---- demo mode: poll the public demo API (it has no webhooks) --------
   async function pollDemo() {
@@ -477,7 +548,7 @@ export function createApp(config) {
     ".svg": "image/svg+xml", ".png": "image/png", ".webmanifest": "application/manifest+json", ".json": "application/json",
     ".woff2": "font/woff2", ".txt": "text/plain; charset=utf-8" };
   const SECURITY = {
-    "Content-Security-Policy": "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+    "Content-Security-Policy": "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; font-src 'self'; manifest-src 'self'; worker-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
     "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer", "X-Frame-Options": "DENY",
   };
   async function serveStatic(res, pathname) {
@@ -496,9 +567,19 @@ export function createApp(config) {
     res.end(out);
   }
 
+  const clientIp = (req) => (config.trustProxy ? String(req.headers["x-forwarded-for"] ?? "").split(",")[0].trim() : "") || req.socket.remoteAddress || "?";
+  function limit(req, p) {
+    if (!limits || req.method === "GET" || req.method === "HEAD") return;
+    const bucket = p === "/webhooks/send21" ? "webhook" : p === "/api/users" ? "signup" : p.startsWith("/api/") ? "write" : null;
+    if (!bucket) return;
+    const wait = limits[bucket](`${bucket}:${clientIp(req)}`);
+    if (wait) throw new HttpError(429, `Too many requests. Try again in ${wait} s.`, { "Retry-After": String(wait) });
+  }
+
   async function route(req, res) {
     const url = new URL(req.url, "http://x");
     const p = url.pathname;
+    limit(req, p);
     const m = (re) => p.match(re);
     let mm;
 
@@ -549,8 +630,16 @@ export function createApp(config) {
       }
       if (mm[2] === "/simulate" && req.method === "POST") {
         if (mode !== "mock") throw new HttpError(403, "Simulated payments exist in mock mode only");
+        const outcome = url.searchParams.get("outcome") ?? "ok";
+        if (!["ok", "wrong_amount", "expire", "late"].includes(outcome)) throw new HttpError(400, "Unknown outcome");
+        if (outcome === "late") {
+          if (!FINAL.has(r.status)) throw new HttpError(409, "Close the request first (cancel or let it expire)");
+          return send(res, 200, { ok: true, outcome: simulatePayment(r, "late").outcome });
+        }
         if (FINAL.has(r.status)) return send(res, 200, { ok: true, status: r.status });
-        simulatePayment(r, url.searchParams.get("outcome") ?? "ok");
+        if (simulating.has(r.id)) return send(res, 202, { ok: true }); // a double tap simulates once
+        if (outcome !== "expire") { simulating.add(r.id); setTimeout(() => simulating.delete(r.id), (config.simulateDelayMs ?? 1500) + 500).unref(); }
+        simulatePayment(r, outcome);
         return send(res, 202, { ok: true });
       }
     }
@@ -630,13 +719,14 @@ export function createApp(config) {
     } catch (err) {
       const status = err instanceof HttpError ? err.status : 500;
       if (status === 500) log(err);
-      if (!res.headersSent) send(res, status, { error: status === 500 ? "Something went wrong" : err.message });
+      if (!res.headersSent) send(res, status, { error: status === 500 ? "Something went wrong" : err.message }, err.headers ?? {});
       else res.end();
     }
   }
 
   return {
     handler, db, mode, handleWebhook, simulatePayment, webhookSecret, pollDemo, pushLog,
-    close() { clearInterval(poller); clearInterval(heartbeat); for (const map of [userStreams, payStreams]) for (const set of map.values()) for (const r of set) r.end(); db.close(); },
+    sweepMock,
+    close() { clearInterval(poller); clearInterval(sweeper); clearInterval(heartbeat); for (const map of [userStreams, payStreams]) for (const set of map.values()) for (const r of set) r.end(); db.close(); },
   };
 }

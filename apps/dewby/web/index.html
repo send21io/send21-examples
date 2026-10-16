@@ -6,6 +6,9 @@
   <meta name="theme-color" content="#F5FAF3">
   <!-- One scheme only: theme.js sets "light only" (default) or "dark only". -->
   <meta name="color-scheme" content="light only">
+  <!-- GitHub Pages sends no headers, so the policy rides in the page. The Node server sends the same as a header. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; font-src 'self'; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
+  <meta name="referrer" content="no-referrer">
   <meta name="description" content="Ask friends for money, split the bill, pay back. You sign in your own wallet. Testnet example.">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="dewby">
@@ -45,8 +48,8 @@
   <div class="stage">
     <aside id="deskhero" class="deskhero" aria-label="About this app"></aside>
     <div class="phone">
-      <div class="testnet" role="note"><span>test mode</span><span class="sr"> · test money only, nothing here has value</span></div>
-      <main id="app" tabindex="-1" aria-live="polite"></main>
+      <aside class="testnet" aria-label="Test mode"><span>test mode</span><span class="sr"> · test money only, nothing here has value</span></aside>
+      <main id="app" tabindex="-1"><div class="skel" aria-busy="true" aria-label="Loading"><span class="sk sk-bar"></span><span class="sk sk-circle"></span><span class="sk sk-line w60"></span><span class="sk sk-big"></span><span class="sk sk-line w40"></span><span class="sk sk-btn"></span></div></main>
       <div id="toast" role="status" aria-live="polite"></div>
     </div>
   </div>

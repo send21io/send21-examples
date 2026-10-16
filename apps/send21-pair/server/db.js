@@ -91,11 +91,18 @@ CREATE TABLE IF NOT EXISTS push_subs (
 ) STRICT;
 `;
 
+// Added after the first release: a payment that arrives after a request was closed (expired,
+// cancelled, or already paid with another transaction). The request keeps its final state;
+// these columns carry the notice both people see.
+const LATE_COLUMNS = { late_tx_id: "TEXT", late_state: "TEXT", late_event: "TEXT", late_amount: "TEXT", late_at: "INTEGER" };
+
 export function openDb(file) {
   if (file !== ":memory:") mkdirSync(dirname(file), { recursive: true });
   const db = new DatabaseSync(file);
   db.exec("PRAGMA journal_mode = WAL; PRAGMA synchronous = FULL; PRAGMA busy_timeout = 5000; PRAGMA foreign_keys = ON;");
   db.exec(SCHEMA);
+  const have = new Set(db.prepare("PRAGMA table_info(requests)").all().map((c) => c.name));
+  for (const [col, type] of Object.entries(LATE_COLUMNS)) if (!have.has(col)) db.exec(`ALTER TABLE requests ADD COLUMN ${col} ${type}`);
   return db;
 }
 

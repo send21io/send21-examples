@@ -18,6 +18,7 @@ const app = createApp({
   allowLive: env.PAIR_ALLOW_LIVE === "1",
   publicUrl: env.PAIR_PUBLIC_URL || undefined,
   push: env.PAIR_PUSH !== "off",
+  trustProxy: env.PAIR_TRUST_PROXY === "1", // rate limits per X-Forwarded-For behind your own proxy
 });
 
 const port = Number(env.PORT ?? 8787);
