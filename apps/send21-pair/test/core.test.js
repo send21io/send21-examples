@@ -33,7 +33,7 @@ test("amount math is exact", () => {
   assert.equal(formatUnits(5400, 8, { trim: false }), "0.00005400");
   assert.equal(formatUnits(0, 6), "0");
   assert.equal(mockBaseUnits(10.6, "SEK", "usdc-sol"), 1_000_000);
-  const shares = splitAmount(100, 3);
+  const shares = splitAmount(100, 3, "SEK");
   assert.deepEqual(shares, [33.34, 33.33, 33.33]);
   assert.equal(Math.round(shares.reduce((a, b) => a + b) * 100), 10000);
   assert.equal(fiatForLocale("sv-SE"), "SEK");

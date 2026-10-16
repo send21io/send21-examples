@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   FINAL, MAX_AMOUNT, REQUEST_TTL_MS, addressGroups, canMove, cleanText, encodeCard, fiatDecimals, parseAmount,
-  safeHref, sanitizeAmountInput, statusWord, timeLeft, validColor, validId,
+  safeHref, sanitizeAmountInput, splitAmount, splitShares, statusWord, timeLeft, validColor, validId,
 } from "../web/lib/core.js";
 
 // Small seeded PRNG so a failure is reproducible.
@@ -92,4 +92,31 @@ test("ids, colors, address groups, status words, time left and the state machine
   assert.equal(timeLeft(now + 90_000, now), "2 min"); assert.equal(timeLeft(now - 1, now), null); assert.equal(timeLeft("x", now), null);
   for (const f of FINAL) for (const to of ["awaiting", "seen", "review", "paid", "expired", "cancelled"]) assert.equal(canMove(f, to), false, `${f} -> ${to}`);
   assert.ok(encodeCard({ a: 1 }).length > 0);
+});
+
+test("splitAmount: shares in the currency's own unit, always summing exactly, remainder on share 0", () => {
+  assert.deepEqual(splitAmount(100, 3, "SEK"), [33.34, 33.33, 33.33]);
+  assert.deepEqual(splitAmount(1000, 3, "JPY"), [334, 333, 333]);
+  assert.deepEqual(splitAmount(1001, 4, "JPY"), [251, 250, 250, 250]);
+  assert.deepEqual(splitAmount(10, 4, "KRW"), [4, 2, 2, 2]);
+  assert.deepEqual(splitAmount(0.05, 3, "USD"), [0.03, 0.01, 0.01]);
+  assert.deepEqual(splitShares(1001, 3, true, "JPY"), { mine: 251, friends: [250, 250, 250] });
+  assert.deepEqual(splitShares(1001, 3, false, "JPY"), { mine: null, friends: [335, 333, 333] });
+  assert.deepEqual(splitShares(42, 1, true, "JPY"), { mine: null, friends: [42] });
+  const r = rng(2026);
+  const fiats = ["USD", "SEK", "EUR", "JPY", "KRW", "CLP", "GBP"];
+  for (let i = 0; i < 20000; i++) {
+    const fiat = fiats[i % fiats.length];
+    const scale = 10 ** fiatDecimals(fiat);
+    const total = Math.round(r() * 10000 * scale) / scale;
+    const parts = 2 + Math.floor(r() * 25);
+    const shares = splitAmount(total, parts, fiat);
+    assert.equal(shares.length, parts);
+    const units = shares.map((x) => Math.round(x * scale));
+    units.forEach((u, j) => assert.equal(u / scale, shares[j], `${total} ${fiat}/${parts}: share ${j} not in whole units`));
+    assert.equal(units.reduce((a, b) => a + b, 0), Math.round(total * scale), `${total} ${fiat}/${parts} sums exactly`);
+    assert.ok(units.slice(1).every((u) => u === units[1]), "all but share 0 are equal");
+    assert.ok(units[0] - units[1] >= 0 && units[0] - units[1] < parts, "share 0 holds less than one unit per part extra");
+    assert.deepEqual(splitAmount(total, parts, fiat), shares, "deterministic");
+  }
 });

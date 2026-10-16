@@ -1,7 +1,7 @@
 // Service worker: offline app shell, Web Push, notification taps.
 // A notification tap can only open an http(s) page (the pay screen), never a
 // wallet URI, so the wallet opens with one more tap on "Open wallet".
-const CACHE = "dewby-v3";
+const CACHE = "dewby-v4";
 const SHELL = ["./", "index.html", "styles.css", "app.js", "brand.js", "icons.js", "theme.js", "config.js", "lib/core.js", "lib/server-api.js", "lib/static-api.js", "vendor/qrcode.js",
   "icons/mark.svg", "icons/icon-192.png", "icons/favicon-32.png", "fonts/nunito-latin.woff2", "manifest.webmanifest"];
 const NAME = "dewby";

@@ -117,7 +117,18 @@ try {
   // 9. cancel, then a payment after close
   await newRequest(30, "Coffee");
   await home(A); await A.click(".activity li a >> nth=0"); await A.waitForSelector("[data-act=cancel]");
-  await A.click("[data-act=cancel]"); await A.waitForSelector(".contacts");
+  // The in-app sheet: focus starts on "Keep it", Tab stays inside, Esc keeps the request.
+  await A.click("[data-act=cancel]"); await A.waitForSelector(".sheet[role=dialog][aria-modal=true]");
+  await A.waitForTimeout(300);
+  must(await A.evaluate(() => document.activeElement?.matches("[data-sheet-no]")), "focus starts on the safe button");
+  for (let i = 0; i < 5; i++) await A.keyboard.press("Tab");
+  must(await A.evaluate(() => Boolean(document.activeElement?.closest(".sheet"))), "focus is trapped in the sheet");
+  must(await A.evaluate(() => document.getElementById("app").inert), "the page behind is inert");
+  await axe(A, "cancel sheet");
+  await A.keyboard.press("Escape"); await A.waitForSelector(".sheet", { state: "detached" });
+  must(await A.locator("[data-act=cancel]").count() === 1, "Esc keeps the request");
+  must(await A.evaluate(() => document.activeElement?.matches("[data-act=cancel]")), "focus returns to Cancel");
+  await A.click("[data-act=cancel]"); await A.click("[data-sheet-yes]"); await A.waitForSelector(".contacts");
   await A.click(".activity li a >> nth=0"); await A.waitForSelector(".pill.cancelled");
   must(await A.locator("[data-act=cancel]").count() === 0, "a cancelled request can't be cancelled again");
   await A.click("[data-act=simLate]"); await A.waitForSelector(".late");
@@ -125,7 +136,7 @@ try {
   must(await A.locator(".late:has-text('cancelled')").count() === 1, "notice names the closed state");
   must(await A.locator(".pill.cancelled").count() === 1, "request stays cancelled");
   await axe(A, "payment after close");
-  ok("cancelled stays cancelled; payment after close shows txId and state");
+  ok("cancel sheet (focus trap, Esc keeps it); cancelled stays cancelled; payment after close shows txId and state");
 
   // 10. expired: no way to pay
   const u3 = await newRequest(15, "Snacks");

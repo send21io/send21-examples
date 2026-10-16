@@ -80,3 +80,15 @@ test("static mode: the same form key creates the request once", async () => {
   assert.equal(a.id, b.id);
   assert.equal((await api.me()).activity?.length ?? 1, 1);
 });
+
+test("static mode: a JPY split asks whole yen, the requester keeps the remainder, the sum is exact", async () => {
+  const api = staticApi("t4");
+  await api.signup({ name: "Alex", fiat: "JPY" });
+  const friends = ["user_aaaaaa", "user_bbbbbb", "user_cccccc"];
+  for (const [i, id] of friends.entries()) await api.addContact(encodeCard({ v: 1, i: id, n: `F${i}`, c: "#34D8A6", a: { "usdc-sol": SOL } }));
+  const reqs = await api.createRequests({ kind: "request", contactIds: friends, amount: 1001, fiat: "JPY", includeMe: true });
+  assert.deepEqual(reqs.map((r) => r.fiat_amount), [250, 250, 250]);
+  const noMe = await api.createRequests({ kind: "request", contactIds: friends, amount: 1001, fiat: "JPY", includeMe: false });
+  assert.deepEqual(noMe.map((r) => r.fiat_amount), [335, 333, 333]);
+  assert.equal(noMe.reduce((a, r) => a + r.fiat_amount, 0), 1001);
+});

@@ -75,7 +75,7 @@ dewby has its own UI (`web/`) and nothing else. The server and the payment logic
 | Rate limits (token bucket, `429` + `Retry-After`), strict amount and name rules, CSP | same | unchanged; `APP_TRUST_PROXY=1` behind a proxy |
 | Browser libs: assets, amounts, status text, deep links, the client-side mock | `../send21-pair/web/lib/`, `vendor/` | served as a fallback root limited to `lib/` and `vendor/`, copied into the Pages build |
 
-`test/shared-suite.test.js` runs send21 pair's entire test suite (49 tests: signatures, replay, dedupe across a restart, mismatch, idempotency, server-side addresses, pairing, push, payment after close, rate limits, input fuzzing, link tampering) against dewby's server wrapper, so the shared logic is proven for both apps.
+`test/shared-suite.test.js` runs send21 pair's entire test suite (52 tests: signatures, replay, dedupe across a restart, mismatch, idempotency, server-side addresses, pairing, push, payment after close, rate limits, input fuzzing, link tampering) against dewby's server wrapper, so the shared logic is proven for both apps.
 
 ## Run it
 
@@ -85,7 +85,7 @@ Node.js 22.13 or newer, no npm dependencies.
 cd apps/dewby
 npm start                 # mock mode on http://localhost:8788, two users: /?as=a and /?as=b
 npm run demo              # real testnet drafts from the public send21 demo API (polled)
-npm test                  # 14 tests, including the shared 49-test suite
+npm test                  # 14 tests, including the shared 52-test suite
 ```
 
 | Mode | What happens | Env |

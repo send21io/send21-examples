@@ -83,7 +83,8 @@ test("split a bill: N drafts, shares add up, all to the requester", async (t) =>
   await pair(s, alex, kim);
   const r = await s.call("POST", "/api/requests", { token: alex.token, body: { kind: "request", contactIds: [sam.id, kim.id], amount: 100, note: "Dinner", includeMe: true, clientKey: key() } });
   assert.equal(r.status, 201, r.text);
-  assert.deepEqual(r.json.requests.map((x) => x.fiat_amount), [33.34, 33.33]);
+  // 100 in 3 parts: friends pay 33.33 each, Alex's own part takes the extra cent (33.34).
+  assert.deepEqual(r.json.requests.map((x) => x.fiat_amount), [33.33, 33.33]);
   assert.equal(new Set(r.json.requests.map((x) => x.split_id)).size, 1);
   assert.ok(p.calls.every((c) => c.receiverAddress === ALEX["usdc-sol"]));
   const kimMe = await s.call("GET", "/api/me", { token: kim.token });
@@ -158,4 +159,21 @@ test("demo mode sends only network and currency (the documented CreateDemoDraftR
 
 test("api mode refuses to start without PAIR_ALLOW_LIVE (send21 accounts are live-only)", () => {
   assert.throws(() => createApp({ mode: "api", dbFile: tmpDb(), push: false, apiKey: "k", webhookSecret: "s" }), /LIVE networks/);
+});
+
+test("split in a zero-decimal currency: whole yen per share, remainder on the requester, exact sum", async (t) => {
+  const s = await start();
+  t.after(() => s.close());
+  const alex = await user(s, "Alex", { fiat: "JPY", addresses: ALEX });
+  const friends = [];
+  for (const n of ["Sam", "Kim", "Lou"]) { const u = await user(s, n, { addresses: SAM }); await pair(s, alex, u); friends.push(u); }
+  const ask = async (includeMe) => (await s.call("POST", "/api/requests", { token: alex.token, body: { kind: "request", contactIds: friends.map((f) => f.id), amount: 1000, fiat: "JPY", includeMe, clientKey: key() } })).json.requests.map((x) => x.fiat_amount);
+  // 1000 yen in 4 parts: 250 each, nothing left over.
+  assert.deepEqual(await ask(true), [250, 250, 250]);
+  const s2 = await s.call("POST", "/api/requests", { token: alex.token, body: { kind: "request", contactIds: friends.map((f) => f.id), amount: 1001, fiat: "JPY", includeMe: true, clientKey: key() } });
+  assert.deepEqual(s2.json.requests.map((x) => x.fiat_amount), [250, 250, 250], "1001 = 251 (Alex) + 3 x 250");
+  // Without Alex's own part, the first person asked takes the remainder.
+  const s3 = await s.call("POST", "/api/requests", { token: alex.token, body: { kind: "request", contactIds: friends.map((f) => f.id), amount: 1001, fiat: "JPY", includeMe: false, clientKey: key() } });
+  assert.deepEqual(s3.json.requests.map((x) => x.fiat_amount), [335, 333, 333]);
+  assert.ok(s3.json.requests.every((x) => Number.isInteger(x.fiat_amount)));
 });

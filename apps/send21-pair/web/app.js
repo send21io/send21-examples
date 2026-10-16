@@ -1,6 +1,6 @@
 import {
   ASSETS, FINAL, addressGroups, cleanText, cryptoLine, fiatForLocale, formatFiat, initials, mockBaseUnits, networkOf, parseAmount, pickAsset, randomId,
-  safeHref, sanitizeAmountInput, splitAmount, statusText, statusWord, timeLeft, validAddress, validColor,
+  safeHref, sanitizeAmountInput, splitShares, statusText, statusWord, timeLeft, validAddress, validColor,
 } from "./lib/core.js";
 import { serverApi } from "./lib/server-api.js";
 import { staticApi } from "./lib/static-api.js";
@@ -163,6 +163,57 @@ function errorScreen(err, { title } = {}) {
     <div class="stack"><a class="btn primary" href="#/">${icon("home")}Home</a>${off ? `<button class="btn secondary" data-act="retry">${icon("refresh")}Try again</button>` : ""}</div>`, { retry: () => render() });
 }
 const skeleton = () => `<div class="skel" aria-busy="true" aria-label="Loading"><span class="sk sk-bar"></span><span class="sk sk-circle"></span><span class="sk sk-line w60"></span><span class="sk sk-big"></span><span class="sk sk-line w40"></span><span class="sk sk-btn"></span></div>`;
+
+/**
+ * In-app confirm as a bottom sheet: icon, one short line, a danger action and a safe one.
+ * A real modal: role="dialog" + aria-modal, the rest of the page is inert, focus starts on the
+ * safe button and is trapped inside, Esc or a tap on the backdrop keeps things as they are,
+ * and focus returns to the button that opened it. Resolves true only for the danger action.
+ */
+function sheet({ ic = "alert", title, line, yes, no = "Keep it" }) {
+  const host = $app.parentElement;
+  const opener = document.activeElement;
+  const id = `sh${Date.now().toString(36)}`;
+  host.insertAdjacentHTML("beforeend", `<div class="sheet-wrap" data-sheet>
+    <div class="sheet-back" data-sheet-no></div>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="${id}t" aria-describedby="${id}d">
+      <span class="sheet-grab" aria-hidden="true"></span>
+      <span class="state-ic bad sheet-ic">${icon(ic, { size: 28 })}</span>
+      <h2 id="${id}t">${esc(title)}</h2>
+      <p id="${id}d">${esc(line)}</p>
+      <button type="button" class="btn danger big" data-sheet-yes>${icon(ic)}${esc(yes)}</button>
+      <button type="button" class="btn secondary" data-sheet-no>${esc(no)}</button>
+    </div></div>`);
+  const wrap = host.lastElementChild;
+  const others = [...host.children].filter((el) => el !== wrap && !el.inert);
+  for (const el of others) el.inert = true;
+  const buttons = [...wrap.querySelectorAll("button")];
+  requestAnimationFrame(() => { wrap.classList.add("open"); buttons[1].focus(); });
+  haptic(8);
+  return new Promise((resolve) => {
+    const close = (answer) => {
+      document.removeEventListener("keydown", key, true);
+      for (const el of others) el.inert = false;
+      wrap.classList.remove("open");
+      setTimeout(() => wrap.remove(), calm() ? 0 : 220);
+      if (opener && document.contains(opener)) opener.focus();
+      resolve(answer);
+    };
+    const key = (e) => {
+      if (e.key === "Escape") { e.preventDefault(); close(false); }
+      else if (e.key === "Tab") {
+        const i = buttons.indexOf(document.activeElement);
+        const next = e.shiftKey ? (i <= 0 ? buttons.length - 1 : i - 1) : (i + 1) % buttons.length;
+        e.preventDefault(); buttons[next].focus();
+      }
+    };
+    document.addEventListener("keydown", key, true);
+    wrap.addEventListener("click", (e) => {
+      if (e.target.closest("[data-sheet-yes]")) close(true);
+      else if (e.target.closest("[data-sheet-no]")) close(false);
+    });
+  });
+}
 async function share(url, title, text) {
   if (navigator.share) {
     try { await navigator.share({ title, text, url }); return; } catch (e) { if (e.name === "AbortError") return; }
@@ -585,7 +636,7 @@ function screenNew(query) {
     $amt.setAttribute("aria-invalid", String(bad));
     const n = mode === "request" ? selected.size : 1;
     const parts = mode === "request" && n > 1 ? n + (includeMe ? 1 : 0) : 1;
-    const share = parts > 1 ? splitAmount(amt, parts)[0] : amt;
+    const share = parts > 1 ? splitShares(amt, n, includeMe, myFiat).friends.at(-1) : amt; // the base share (any remainder sits with you, or the first person)
     const accepts = mode === "pay" ? target()?.accepts ?? [] : Object.keys(me.addresses);
     const asset = pickAsset(accepts, myFiat, cfg.mode);
     const $c = $app.querySelector("#crypto");
@@ -785,7 +836,7 @@ async function screenPay(id, k) {
       simLate: async () => { await api.simulate(id, k, "late"); toast("Payment after close (simulated)", "alert"); },
       share: () => share(pageUrl, "send21 pair", `${view.receiver.name} asks for ${money(view.fiat_amount, view.fiat)}${view.note ? ` for ${view.note}` : ""}`),
       remind: async () => { await api.remind(view.id); toast("Reminder sent", "bell"); },
-      cancel: async () => { if (confirm("Cancel this request?")) { await api.cancel(view.id); haptic(15); go("#/"); } },
+      cancel: async () => { if (await sheet({ ic: "ban", title: "Cancel this request?", line: "The link stops working. You can ask again any time.", yes: "Cancel request" })) { await api.cancel(view.id); haptic(15); go("#/"); } },
       receipt: () => share(api.receiptUrl(view.receipt), "Paid ✓", `I paid you ${money(view.fiat_amount, view.fiat)} on send21 pair`),
       own: () => { sessionStorage.removeItem("pair.pending"); go("#/"); },
     });
@@ -868,7 +919,7 @@ function screenSettings() {
     },
     notif: enableNotifications,
     testPush: async () => { await api.testPush(); toast("Sent. It should arrive in a moment.", "bell"); },
-    forget: () => { if (confirm("Forget your name and contacts on this device?")) { api.forget(); location.hash = "#/"; location.reload(); } },
+    forget: async () => { if (await sheet({ ic: "trash", title: "Forget me here?", line: "Your name and contacts leave this device.", yes: "Forget me", no: "Keep me" })) { api.forget(); location.hash = "#/"; location.reload(); } },
   });
 }
 

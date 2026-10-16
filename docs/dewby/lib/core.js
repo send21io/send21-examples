@@ -222,12 +222,27 @@ export function initials(name) {
   return ((parts[0]?.[0] ?? "?") + (parts[1]?.[0] ?? "")).toUpperCase();
 }
 
-/** Split `total` into `parts` shares in cents that add up exactly. */
-export function splitAmount(total, parts) {
-  const cents = Math.round(Number(total) * 100);
-  const base = Math.floor(cents / parts);
-  const rest = cents - base * parts;
-  return Array.from({ length: parts }, (_, i) => (base + (i < rest ? 1 : 0)) / 100);
+/**
+ * Split `total` into `parts` shares in the currency's own smallest unit (whole yen for JPY, cents
+ * for SEK). Every share gets the same base amount; the units left over all go to share 0, so the
+ * shares always add up exactly to `total` and the result never depends on order or rounding.
+ * Callers put the requester's own share at index 0 when they pay a part themselves, so the
+ * requester absorbs the remainder; otherwise the first person asked does.
+ */
+export function splitAmount(total, parts, fiat = "USD") {
+  const scale = 10 ** fiatDecimals(fiat);
+  const n = Math.max(1, Math.floor(Number(parts)) || 1);
+  const units = Math.round(Number(total) * scale);
+  if (!Number.isSafeInteger(units) || units < 0) return Array(n).fill(0);
+  const base = Math.floor(units / n);
+  const rest = units - base * n;
+  return Array.from({ length: n }, (_, i) => (base + (i === 0 ? rest : 0)) / scale);
+}
+/** The shares for a split: what each friend is asked for, and the requester's own part (or null). */
+export function splitShares(total, friends, includeMe, fiat = "USD") {
+  if (friends <= 1) return { friends: [Number(total)], mine: null };
+  const all = splitAmount(total, friends + (includeMe ? 1 : 0), fiat);
+  return includeMe ? { mine: all[0], friends: all.slice(1) } : { mine: null, friends: all };
 }
 
 // base64url of UTF-8 JSON, for the static (GitHub Pages) demo where links carry the data.

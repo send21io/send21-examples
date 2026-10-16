@@ -8,7 +8,7 @@
 
 import {
   ASSETS, DEMO_ADDRESSES, FIATS, FINAL, REQUEST_TTL_MS, assetsFor, avatarColor, canMove, cleanText, cryptoLine, decodeCard, encodeCard,
-  mockBaseUnits, networkOf, parseAmount, paymentUri, pickAsset, randomId, splitAmount, statusText, validAddress, validColor, validId,
+  mockBaseUnits, networkOf, parseAmount, paymentUri, pickAsset, randomId, splitShares, statusText, validAddress, validColor, validId,
 } from "./core.js";
 
 const uuid = () => randomId();
@@ -211,7 +211,7 @@ export function staticApi(slot, { storagePrefix = "pair", memo = "send21 pair" }
         const people = contactIds.map((id) => db.contacts.find((x) => x.id === id)).filter(Boolean);
         if (!people.length) throw fail("Pick someone", "bad_input");
         const parts = people.length + (people.length > 1 && includeMe ? 1 : 0);
-        const shares = people.length > 1 ? splitAmount(total, parts) : [total];
+        const shares = splitShares(total, people.length, includeMe, fiat).friends;
         if (shares.some((x) => !(x > 0))) throw fail("That's too little to split", "bad_amount");
         const splitId = people.length > 1 ? uuid() : null;
         people.forEach((c, i) => out.push(mk(c, me, db.addresses, shares[i], splitId)));

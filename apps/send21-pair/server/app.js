@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  ASSETS, FIATS, FINAL, MAX_AMOUNT, REQUEST_TTL_MS, assetsFor, avatarColor, canMove, cleanText, cryptoLine, networkOf, parseAmount, pickAsset, splitAmount, statusText,
+  ASSETS, FIATS, FINAL, MAX_AMOUNT, REQUEST_TTL_MS, assetsFor, avatarColor, canMove, cleanText, cryptoLine, networkOf, parseAmount, pickAsset, splitShares, statusText,
   validAddress, DEMO_ADDRESSES,
 } from "../web/lib/core.js";
 import { openDb, tx } from "./db.js";
@@ -326,7 +326,7 @@ export function createApp(config) {
     } else {
       if (ids.length < 1 || ids.length > 25) throw new HttpError(400, "Pick 1 to 25 people");
       const parts = ids.length + (ids.length > 1 && body.includeMe !== false ? 1 : 0);
-      const shares = ids.length > 1 ? splitAmount(total, parts) : [total];
+      const shares = splitShares(total, ids.length, body.includeMe !== false, fiat).friends;
       if (shares.some((x) => !(x > 0))) throw new HttpError(400, "That's too little to split");
       let splitId = null;
       if (ids.length > 1) {
