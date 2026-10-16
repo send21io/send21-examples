@@ -120,12 +120,19 @@ await alex.waitForSelector("text=Scan to pay");
 await shot(alex, "12-qr-anyone.png");
 
 // Light mode, and desktop.
-await alex.goto(base + "/#/");
-await alex.waitForSelector(".hero");
+await alex.goto(base + "/#/history");
+await alex.waitForSelector("[data-act=filter]");
+await shot(alex, "18-history.png");
+// Light mode lives in Settings.
+await alex.goto(base + "/#/settings");
 await alex.click("[data-act=theme]");
 await alex.waitForSelector("html[data-theme=light]");
+await alex.goto(base + "/#/");
+await alex.waitForSelector(".hero");
 await shot(alex, "13-light.png");
+await alex.goto(base + "/#/settings");
 await alex.click("[data-act=theme]");
+await alex.waitForSelector("html[data-theme=dark]");
 const desk = await (await browser.newContext({ viewport: { width: 1280, height: 860 }, locale: "sv-SE", colorScheme: "dark", storageState: await alex.context().storageState() })).newPage(); watch(desk, "desk");
 await desk.goto(base + "/#/");
 await desk.waitForSelector(".hero");

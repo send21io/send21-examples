@@ -169,7 +169,7 @@ The same suite runs against a white-label server wrapper with `APP_SERVER_MODULE
 | ![Pay](screenshots/07-pay.png) | ![Paid](screenshots/08-paid.png) | ![Home, paid](screenshots/09-home-paid.png) |
 | ![Split](screenshots/10-split.png) | ![Split progress](screenshots/11-split-sent.png) | ![QR anyone can pay](screenshots/12-qr-anyone.png) |
 | ![Light mode](screenshots/13-light.png) | ![Desktop](screenshots/14-desktop.png) | ![Empty home](screenshots/15-home-empty.png) |
-| ![Forced dark home](screenshots/16-home-empty-forced-dark.png) | ![Forced dark code](screenshots/17-my-code-forced-dark.png) | |
+| ![Forced dark home](screenshots/16-home-empty-forced-dark.png) | ![Forced dark code](screenshots/17-my-code-forced-dark.png) | ![History](screenshots/18-history.png) |
 
 Regenerate with `npm i --no-save playwright-core && CHROME_PATH=/path/to/chrome npm run screenshots` (it also builds `overview.png`).
 
