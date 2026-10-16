@@ -4,7 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#121316">
-  <meta name="color-scheme" content="dark light">
+  <!-- One scheme only, never "dark light": with "dark light" and a light system preference, Chromium-based
+       forced dark modes (Samsung Internet, Chrome auto dark) treat the page as light and repaint it. theme.js
+       switches this to "light only" when the user picks light mode. -->
+  <meta name="color-scheme" content="dark only">
   <meta name="description" content="send21 pair: ask friends for money and pay them back. You sign in your own wallet. Testnet prototype.">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="send21 pair">

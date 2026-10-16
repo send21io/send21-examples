@@ -24,17 +24,50 @@ const standalone = matchMedia("(display-mode: standalone)").matches || navigator
 const touch = matchMedia("(pointer: coarse)").matches;
 const calm = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 const logo = `<img class="logo" src="icons/logo.svg" alt="send21">`;
+// Forced dark (Samsung Internet's default "Force Dark Only", Android WebView): the browser repaints
+// the page itself, darkening light or saturated fills (orange turns maroon) and inverting dark text, and
+// it ignores color-scheme opt-outs. Detect it the documented way (a light-only probe whose Canvas
+// color is not white) and switch to a palette that survives: dark fills, orange only as text, icons
+// and SVG strokes, and QR codes as images.
+function detectForcedDark() {
+  const d = document.createElement("div");
+  d.style.cssText = "position:absolute;width:1px;height:1px;left:-9px;top:-9px;background-color:Canvas;color-scheme:light only";
+  document.body.appendChild(d);
+  const c = getComputedStyle(d).backgroundColor;
+  d.remove();
+  return !/^rgba?\(255, 255, 255/.test(c);
+}
+const FORCED_DARK = new URLSearchParams(location.search).has("fd") || detectForcedDark();
+if (FORCED_DARK) document.documentElement.classList.add("fd");
+const EDGE_SEL = ".btn.primary, .hero, .action.main .orb, .seg button[aria-pressed=true]";
+function addEdges(root) {
+  if (!FORCED_DARK) return;
+  for (const el of root.querySelectorAll(EDGE_SEL)) {
+    if (el.querySelector(":scope > .edge")) continue;
+    el.insertAdjacentHTML("beforeend", '<svg class="edge" aria-hidden="true" focusable="false"><rect/></svg>');
+  }
+}
 const BRAND = ["#F7931A", "#FFB347", "#FEF8EC", "#4ADE80", "#E8730C", "#FFD08A"];
 
 // ---- small UI pieces ---------------------------------------------------------
 function avatar(name, color, cls = "") {
   return `<span class="avatar ${cls}" style="background-color:${esc(color ?? "#F7931A")}" aria-hidden="true">${esc(initials(name ?? "?"))}</span>`;
 }
+function qrImg(q, n, label) {
+  const s = 8, c = document.createElement("canvas");
+  c.width = c.height = (n + 4) * s;
+  const g = c.getContext("2d");
+  g.fillStyle = "#FEF8EC"; g.fillRect(0, 0, c.width, c.height);
+  g.fillStyle = "#1B1C20";
+  for (let r = 0; r < n; r++) for (let k = 0; k < n; k++) if (q.isDark(r, k)) g.fillRect((k + 2) * s, (r + 2) * s, s, s);
+  return `<img src="${c.toDataURL("image/png")}" alt="${esc(label)}" width="${c.width}" height="${c.height}">`;
+}
 function qrSvg(text, label) {
   const q = qrcode(0, "M");
   q.addData(text);
   q.make();
   const n = q.getModuleCount();
+  if (FORCED_DARK) return `<div class="qrcard"><div class="qr">${qrImg(q, n, label)}</div><span class="corner c1"></span><span class="corner c2"></span><span class="corner c3"></span><span class="corner c4"></span></div>`;
   let d = "";
   for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (q.isDark(r, c)) d += `M${c},${r}h1v1h-1z`;
   return `<div class="qrcard"><div class="qr"><svg viewBox="-2 -2 ${n + 4} ${n + 4}" role="img" aria-label="${esc(label)}" shape-rendering="crispEdges"><rect x="-2" y="-2" width="${n + 4}" height="${n + 4}" fill="#FEF8EC"/><path d="${d}" fill="#1B1C20"/></svg></div>
@@ -97,8 +130,9 @@ function setTheme(t) {
   document.documentElement.dataset.theme = t;
   try { localStorage.setItem("pair.theme", t); } catch { /* private mode */ }
   document.querySelector('meta[name="theme-color"]')?.setAttribute("content", t === "light" ? "#FEF8EC" : "#121316");
+  document.querySelector('meta[name="color-scheme"]')?.setAttribute("content", `${t} only`);
 }
-const theme = () => document.documentElement.dataset.theme === "light" ? "light" : "dark";
+const theme = () => !FORCED_DARK && document.documentElement.dataset.theme === "light" ? "light" : "dark";
 const themeBtn = () => `<button class="iconbtn" type="button" data-act="theme" aria-label="${theme() === "dark" ? "Light mode" : "Dark mode"}">${icon(theme() === "dark" ? "sun" : "moon")}</button>`;
 const backBtn = () => `<button class="iconbtn back" type="button" data-act="back" aria-label="Back">${icon("chevron-left")}</button>`;
 const go = (hash) => { if (location.hash === hash) render(); else location.hash = hash; };
@@ -141,6 +175,7 @@ async function render() {
 function mount(html, handlers = {}) {
   const all = { theme: () => { setTheme(theme() === "dark" ? "light" : "dark"); render(); }, ...handlers };
   $app.innerHTML = html;
+  addEdges($app);
   $app.onclick = async (e) => {
     const el = e.target.closest("[data-act]");
     if (!el || !all[el.dataset.act] || el.tagName === "FORM") return;
@@ -655,6 +690,7 @@ function screenSettings() {
 // ---- start -------------------------------------------------------------------
 async function start() {
   cfg = await api.config();
+  if (FORCED_DARK) document.documentElement.dataset.theme = "dark";
   const badge = document.querySelector(".testnet");
   badge.innerHTML = cfg.mode === "api"
     ? `<span>${icon("alert", { size: 14 })}LIVE NETWORKS · real money</span>`

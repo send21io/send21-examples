@@ -50,6 +50,7 @@ await alex.fill("input[name=name]", "Alex");
 await shot(alex, "02-start.png");
 await alex.click("button[type=submit]");
 await alex.waitForSelector(".hero");
+await shot(alex, "15-home-empty.png");
 
 await alex.click("a.btn:has-text('Show my code')");
 await alex.waitForSelector(".qr svg");
@@ -129,6 +130,21 @@ const desk = await (await browser.newContext({ viewport: { width: 1280, height: 
 await desk.goto(base + "/#/");
 await desk.waitForSelector(".hero");
 await shot(desk, "14-desktop.png");
+
+// Samsung Internet's default dark mode (WebView FORCE_DARK_ONLY) repaints pages and ignores
+// color-scheme. Chrome's forceDarkModeEnabled setting is the closest emulation: the app must detect it
+// and switch to its forced-dark palette (dark fills, orange text/icons/SVG strokes, QR as image).
+{
+  const fdBrowser = await chromium.launch({ executablePath: process.env.CHROME_PATH, args: ["--no-sandbox", "--blink-settings=forceDarkModeEnabled=true"] });
+  const fd = await (await fdBrowser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, locale: "sv-SE", colorScheme: "light" })).newPage(); watch(fd, "forced-dark");
+  await signup(fd, "Jo");
+  if (!(await fd.evaluate(() => document.documentElement.classList.contains("fd")))) errors.push("forced dark was not detected");
+  await shot(fd, "16-home-empty-forced-dark.png");
+  await fd.click("a.btn:has-text('Show my code')");
+  await fd.waitForSelector(".qr img");
+  await shot(fd, "17-my-code-forced-dark.png");
+  await fdBrowser.close();
+}
 
 // Overview strip at the phone viewport.
 const strip = ["01-onboarding.png", "09-home-paid.png", "05-request.png", "07-pay.png", "08-paid.png", "11-split-sent.png", "03-my-code.png"];

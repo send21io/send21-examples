@@ -36,6 +36,7 @@ A consumer money app for people around 18 to 30: dark by default (light mode in 
 - **Plain status:** a chip with an icon and one word (*Waiting*, *Paying*, *Paid*, *Check*, *Expired*); screen readers get the full sentence (*Waiting for Sam to pay*).
 - **Pairing is one scan** with the phone's own camera (an in-app scanner is offered where `BarcodeDetector` exists), then one tap, *Add Alex*. Both sides see each other.
 - **Links work without the app.** A request link opens a plain page with the amount, the receiver's name, *Open wallet* and a QR.
+- **Browser forced dark modes.** Samsung Internet's default dark mode (like Android WebView's FORCE_DARK_ONLY) repaints every page and ignores `color-scheme`, turning orange fills maroon and dark text white. The app detects it (a `color-scheme: light only` probe whose `Canvas` color isn't white) and switches to a palette that survives: dark fills, the orange as text, icons and an SVG outline, and QR codes as images. Screenshots 16 and 17; preview it anywhere with `?fd`.
 - **Notifications are asked for after the first contact**, not on first launch. On iPhone the app explains *Add to Home Screen* first.
 
 ## How a payment flows
@@ -138,7 +139,8 @@ screenshots/           PNGs at a 390×844 phone viewport
 | ![Add contact](screenshots/04-add-contact.png) | ![Request](screenshots/05-request.png) | ![Asked](screenshots/06-home-asked.png) |
 | ![Pay](screenshots/07-pay.png) | ![Paid](screenshots/08-paid.png) | ![Home, paid](screenshots/09-home-paid.png) |
 | ![Split](screenshots/10-split.png) | ![Split progress](screenshots/11-split-sent.png) | ![QR anyone can pay](screenshots/12-qr-anyone.png) |
-| ![Light mode](screenshots/13-light.png) | ![Desktop](screenshots/14-desktop.png) | |
+| ![Light mode](screenshots/13-light.png) | ![Desktop](screenshots/14-desktop.png) | ![Empty home](screenshots/15-home-empty.png) |
+| ![Forced dark home](screenshots/16-home-empty-forced-dark.png) | ![Forced dark code](screenshots/17-my-code-forced-dark.png) | |
 
 Regenerate with `npm i --no-save playwright-core && CHROME_PATH=/path/to/chrome npm run screenshots` (it also builds `overview.png`).
 

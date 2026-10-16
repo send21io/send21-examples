@@ -24,7 +24,7 @@
   --shadow: 0 18px 50px rgba(0, 0, 0, .45);
   --radius: 22px;
   --ease: cubic-bezier(.2, .8, .2, 1);
-  color-scheme: dark;
+  color-scheme: dark only;
 }
 [data-theme="light"] {
   --bg: #FEF8EC;
@@ -42,7 +42,7 @@
   --bad: #B3261E;
   --bad-bg: rgba(179, 38, 30, .10);
   --shadow: 0 14px 40px rgba(27, 28, 32, .12);
-  color-scheme: light;
+  color-scheme: light only;
 }
 
 * { box-sizing: border-box; }
@@ -75,7 +75,7 @@ a { color: var(--accent); }
 .testnet span {
   display: inline-flex; align-items: center; gap: 6px; pointer-events: auto;
   padding: 5px 12px 5px 9px; border-radius: 999px; font-size: 12px; font-weight: 800; letter-spacing: .12em;
-  color: var(--charcoal); background: linear-gradient(135deg, var(--orange-hi), var(--orange));
+  color: #1B1C20; background-color: #F7931A; background-image: linear-gradient(135deg, #FFB347, #F7931A);
   box-shadow: 0 6px 20px rgba(247, 147, 26, .35);
 }
 .testnet.live span { background: #FF5A4E; color: #1B1C20; }
@@ -110,7 +110,7 @@ h2 .ic { width: 16px; height: 16px; }
   cursor: pointer; text-decoration: none; transition: transform .15s var(--ease), box-shadow .2s, background .2s, opacity .2s;
 }
 .btn:active:not([disabled]) { transform: scale(.97); }
-.btn.primary { background: linear-gradient(135deg, var(--orange-hi), var(--orange) 45%, var(--orange-lo)); color: var(--charcoal); box-shadow: 0 10px 30px rgba(247, 147, 26, .32); }
+.btn.primary { background-color: #F7931A; background-image: linear-gradient(135deg, #FFB347, #F7931A 45%, #E8730C); color: #1B1C20; box-shadow: 0 10px 30px rgba(247, 147, 26, .32); }
 .btn.secondary { background: var(--glass); color: var(--fg); border: 1px solid var(--line); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
 .btn.ghost { background: transparent; color: var(--accent); min-height: 48px; font-size: 16px; font-weight: 700; }
 .btn.big { min-height: 64px; font-size: 20px; border-radius: 20px; }
@@ -133,7 +133,7 @@ h2 .ic { width: 16px; height: 16px; }
 /* ---- home hero ---- */
 .hero {
   position: relative; overflow: hidden; border-radius: 28px; padding: 20px 20px 18px; color: var(--charcoal);
-  background: linear-gradient(140deg, #FFC46B 0%, var(--orange) 42%, #E26A00 100%);
+  background-color: #F7931A; background-image: linear-gradient(140deg, #FFC46B 0%, #F7931A 42%, #E26A00 100%);
   box-shadow: 0 20px 50px rgba(247, 147, 26, .30);
 }
 .hero::before { content: ""; position: absolute; inset: -40% -30% auto auto; width: 260px; height: 260px; border-radius: 50%; background: radial-gradient(circle, rgba(254, 248, 236, .35), transparent 70%); }
@@ -146,13 +146,14 @@ h2 .ic { width: 16px; height: 16px; }
 
 /* ---- quick actions ---- */
 .actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 18px 0 4px; }
+.action, .action:link, .action:visited { color: var(--fg); }
 .action { display: flex; flex-direction: column; align-items: center; gap: 8px; color: var(--fg); text-decoration: none; font-size: 14px; font-weight: 700; min-height: 48px; }
 .action .orb {
   width: 64px; height: 64px; border-radius: 22px; display: grid; place-items: center;
   background: var(--glass); border: 1px solid var(--line); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
   transition: transform .18s var(--ease), background .2s;
 }
-.action.main .orb { background: linear-gradient(135deg, var(--orange-hi), var(--orange-lo)); color: var(--charcoal); border: 0; box-shadow: 0 10px 26px rgba(247, 147, 26, .35); }
+.action.main .orb { background-color: #F7931A; background-image: linear-gradient(135deg, #FFB347, #E8730C); color: #1B1C20; border: 0; box-shadow: 0 10px 26px rgba(247, 147, 26, .35); }
 .action:hover .orb { transform: translateY(-2px); }
 .action:active .orb { transform: scale(.92); }
 .action .orb .ic { width: 28px; height: 28px; }
@@ -243,7 +244,7 @@ input.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-s
 .bigamt { font-size: 60px; font-weight: 900; letter-spacing: -.04em; text-align: center; margin: 6px 0 0; line-height: 1.05; font-variant-numeric: tabular-nums; }
 .seg { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: 18px; background: var(--glass); border: 1px solid var(--line); margin-bottom: 10px; }
 .seg button { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; border: 0; border-radius: 14px; background: transparent; color: var(--fg); font: inherit; font-weight: 800; cursor: pointer; transition: background .2s, color .2s; }
-.seg button[aria-pressed="true"] { background: linear-gradient(135deg, var(--orange-hi), var(--orange)); color: var(--charcoal); }
+.seg button[aria-pressed="true"] { background-color: #F7931A; background-image: linear-gradient(135deg, #FFB347, #F7931A); color: #1B1C20; }
 
 /* ---- who / pay ---- */
 .who { display: flex; flex-direction: column; align-items: center; gap: 12px; margin: 6px 0 4px; text-align: center; }
@@ -363,6 +364,31 @@ footer.foot .l { display: inline-flex; align-items: center; gap: 6px; }
 footer.foot .ic { width: 15px; height: 15px; }
 
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---- forced dark (Samsung Internet default, WebView FORCE_DARK_ONLY): see detectForcedDark() in app.js.
+   The browser darkens light/saturated fills and shadows and inverts dark text, so here every fill is dark
+   and the brand orange is carried by text, icons and an SVG stroke (.edge), which it leaves alone. ---- */
+html.fd [data-act="theme"], html.fd .setrow:has([data-act="theme"]) { display: none; }
+html.fd .hero { background: #241708; background-image: none; color: #FEF8EC; box-shadow: none; }
+html.fd .hero::before, html.fd .hero::after { display: none; }
+html.fd .hero .lbl, html.fd .hero .num { color: #F7931A; }
+html.fd .hero .tag { background: rgba(254, 248, 236, .08); color: #FEF8EC; }
+html.fd .btn.primary, html.fd .action.main .orb, html.fd .seg button[aria-pressed="true"] {
+  position: relative; background: #241708; background-image: none; color: #F7931A; box-shadow: none; border: 0;
+}
+html.fd .testnet span { background: #241708; background-image: none; color: #F7931A; box-shadow: none; }
+html.fd .burst .disc { background: #10301C; color: #6EE7A0; box-shadow: none; }
+html.fd .burst .wave { display: none; }
+html.fd .status.awaiting, html.fd .pill.awaiting, html.fd .status.seen, html.fd .pill.seen { background: #241708; }
+html.fd .qrcard { animation: none; box-shadow: none; background: #241708; }
+html.fd .qr img { display: block; width: 100%; height: auto; image-rendering: pixelated; }
+html.fd .halo::before, html.fd .scanline { display: none; }
+.edge { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+.edge rect { x: 1px; y: 1px; width: calc(100% - 2px); height: calc(100% - 2px); rx: 18px; fill: none; stroke: #F7931A; stroke-width: 2px; }
+.hero .edge rect { rx: 28px; }
+.action .orb .edge rect { rx: 22px; }
+.btn.big .edge rect { rx: 20px; }
+.seg .edge rect { rx: 14px; }
 
 /* ---- desktop: the app column floats on a soft stage ---- */
 @media (min-width: 720px) {
