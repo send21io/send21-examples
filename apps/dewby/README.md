@@ -16,7 +16,7 @@ Friends connect with one scan, then ask each other for money, split a bill, pay 
 
 ## Look and feel
 
-Fresh and light for people around 18 to 30. Light theme by default (dark is optional in Settings). Rounded type ([Nunito](https://github.com/googlefonts/nunito), self-hosted, SIL OFL 1.1), chunky pill buttons that squish when tapped, four big color tiles (*Request*, *Pay*, *Split*, *QR*), a balance "bubble" with the amount large, status chips with an icon and one word, and a testnet sticker that never scrolls away. When a payment lands, a dew drop falls, splashes into droplets and turns into a check, with drop-shaped confetti and a short vibration. Animations stop under `prefers-reduced-motion`; text meets WCAG AA (checked in `test/brand.test.js`).
+Fresh and light for people around 18 to 30. Light theme by default (dark is optional in Settings). Rounded type ([Nunito](https://github.com/googlefonts/nunito), self-hosted, SIL OFL 1.1), chunky pill buttons that squish when tapped, four big color tiles (*Request*, *Pay*, *Split*, *QR*), a balance "bubble" with the amount large, status chips with an icon and one word, and a testnet sticker that never scrolls away. When a payment lands, a dew drop falls, splashes into droplets and turns into a check, with drop-shaped confetti and a short vibration. Copy buttons turn into *Copied*, screens load behind a skeleton, the receiver's address is shown in groups of four with the first and last four highlighted, and every status is an icon, a color and a word (*Waiting*, *To pay*, *Paying*, *Paid*, *Mismatch*, *Expired*, *Cancelled*). Every tap target is at least 44 px; a new screen moves focus to its heading. Animations stop under `prefers-reduced-motion`; text meets WCAG AA (checked in `test/brand.test.js`), and axe reports 0 violations on every screen.
 
 | Token | Light (default) | Use |
 |---|---|---|
@@ -69,10 +69,13 @@ dewby has its own UI (`web/`) and nothing else. The server and the payment logic
 | `Idempotency-Key` per request (a retry creates one draft; a changed amount is refused) | same | unchanged |
 | `X-Send21-Signature-V2` webhook verification (timestamp + delivery id + raw body) | `../send21-pair/server/verify.js` | unchanged |
 | Durable dedupe on `X-Send21-Delivery` in SQLite, in one transaction with the update | `../send21-pair/server/db.js` | unchanged |
-| Amount, asset and network checked against the stored request; mismatches go to review | `../send21-pair/server/app.js` | unchanged |
+| Amount, asset and network checked against the stored request; mismatches (or a delivery with no amount) go to review | `../send21-pair/server/app.js` | unchanged |
+| Closed states (*Paid*, *Expired*, *Cancelled*) are final; requests expire after 72 h | same | unchanged |
+| Payment after close: money for a closed request is stored (tx id, closed state) and shown as a notice on both sides, without reopening it | same + `web/app.js` | done in mock, demo and api, and in the Pages mock |
+| Rate limits (token bucket, `429` + `Retry-After`), strict amount and name rules, CSP | same | unchanged; `APP_TRUST_PROXY=1` behind a proxy |
 | Browser libs: assets, amounts, status text, deep links, the client-side mock | `../send21-pair/web/lib/`, `vendor/` | served as a fallback root limited to `lib/` and `vendor/`, copied into the Pages build |
 
-`test/shared-suite.test.js` runs send21 pair's entire test suite (28 tests: signatures, replay, dedupe across a restart, mismatch, idempotency, server-side addresses, pairing, push) against dewby's server wrapper, so the shared logic is proven for both apps.
+`test/shared-suite.test.js` runs send21 pair's entire test suite (49 tests: signatures, replay, dedupe across a restart, mismatch, idempotency, server-side addresses, pairing, push, payment after close, rate limits, input fuzzing, link tampering) against dewby's server wrapper, so the shared logic is proven for both apps.
 
 ## Run it
 
@@ -82,7 +85,7 @@ Node.js 22.13 or newer, no npm dependencies.
 cd apps/dewby
 npm start                 # mock mode on http://localhost:8788, two users: /?as=a and /?as=b
 npm run demo              # real testnet drafts from the public send21 demo API (polled)
-npm test                  # 12 tests, including the shared 28-test suite
+npm test                  # 14 tests, including the shared 49-test suite
 ```
 
 | Mode | What happens | Env |
@@ -92,6 +95,14 @@ npm test                  # 12 tests, including the shared 28-test suite
 | `api` | Your scoped send21 key and webhooks. send21 accounts use the **live** networks, so this refuses to start without `APP_ALLOW_LIVE=1`. | `APP_MODE=api SEND21_API_KEY=… SEND21_WEBHOOK_SECRET=… APP_ALLOW_LIVE=1 APP_PUBLIC_URL=https://…` |
 
 Other env vars: `APP_DATA_DIR`, `APP_DB`, `APP_PUSH=off`, `PORT`, `HOST`. The webhook endpoint is `POST /webhooks/send21`.
+
+## Safety, in short
+
+- The payer's own wallet signs and broadcasts. send21 never signs, never broadcasts and never holds funds; neither does dewby.
+- Webhooks: only `X-Send21-Signature-V2` (HMAC over timestamp, delivery id and raw body, within 300 s). send21 dedupes its deliveries, and this receiver also runs its own check on `X-Send21-Delivery`, stored in the same SQLite transaction as the status change.
+- A payment counts only if amount, asset and network match the stored request. Closed is final; a later payment shows a *Payment after close* card with the tx id and the closed state.
+- Amounts: digits and one separator, the currency's decimals, more than 0, at most 10 000. Names and notes lose invisible and bidi characters. Everything is escaped before it reaches the page. One tap at a time, idempotent forms.
+- Full list: [send21 pair, Safety rules](../send21-pair/README.md#safety-rules). Browser smoke test for every flow: `node scripts/smoke-browser.js <url>` (needs `PLAYWRIGHT_MODULE` and `CHROME_PATH`).
 
 ## Hosted demo
 

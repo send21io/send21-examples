@@ -72,7 +72,7 @@ Needs Node.js 22.13 or newer (Node 24 recommended, no warnings). No `npm install
 ```sh
 cd apps/send21-pair
 npm start            # mock mode on http://localhost:8787
-npm test             # 48 tests, no network needed
+npm test             # 49 tests, no network needed
 ```
 
 Two users in one browser: open `http://localhost:8787/?as=alex` and `http://localhost:8787/?as=sam` in two windows (each `?as=` keeps its own device token). Make a name in each, open *My code* in one and paste the link into the other, tap *Add*, request an amount, and on the other side tap *Simulate payment*. The simulated payment is a signed `draft.seen` and `draft.confirmed` delivery that goes through the real verification and dedupe code, including one repeated delivery that gets ignored.
@@ -139,7 +139,7 @@ screenshots/           PNGs at a 390×844 phone viewport
 
 ## Tests
 
-`npm test` runs 48 tests with no network:
+`npm test` runs 49 tests with no network:
 
 - **Pairing:** the link adds a mutual contact after one confirm, the pair page shows only name and color, contacts never expose addresses, own/unknown/reset codes are refused, only contacts can be asked.
 - **Requests:** the draft goes to the receiver's own address from their profile (extra address fields from the browser are ignored), the smart default, idempotency (the same key twice, even concurrently, makes one request and one send21 `Idempotency-Key`; a changed amount is 422), split shares, the exact `POST /api/v1/drafts` and `POST /api/v1/payment-requests` bodies and headers, refusing a draft that comes back with another address, the demo request body, and `api` mode refusing to start without `PAIR_ALLOW_LIVE`.

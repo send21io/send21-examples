@@ -15,5 +15,5 @@ test("every send21-pair security and flow test passes on dewby's server", () => 
   const n = (k) => Number(r.stdout.match(new RegExp(`^# ${k} (\\d+)`, "m"))?.[1] ?? NaN);
   assert.equal(r.status, 0, r.stdout.slice(-3000) + r.stderr.slice(-2000));
   assert.equal(n("fail"), 0);
-  assert.ok(n("pass") >= 48, `expected the full suite, got ${n("pass")} passing`);
+  assert.ok(n("pass") >= 49, `expected the full suite, got ${n("pass")} passing`);
 });
