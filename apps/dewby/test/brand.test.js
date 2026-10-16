@@ -51,7 +51,7 @@ test("manifest and index.html match brand.js (run npm run brand after editing it
 test("no send21 branding in the UI, except the optional powered-by line", () => {
   const files = ["index.html", "manifest.webmanifest", "app.js", "styles.css", "theme.js", "sw.js", "brand.js", "icons/mark.svg", "icons/logo.svg", "icons/wordmark.svg"];
   for (const f of files) {
-    const code = read(f).split("\n").filter((l) => !/^\s*(\/\/|\/\*|\*)/.test(l)).join("\n").replace(/\s\/\/\s.*$/gm, "").replace(/https:\/\/github\.com\/\S+/g, "");
+    const code = read(f).split("\n").filter((l) => !/^\s*(\/\/|\/\*|\*)/.test(l)).join("\n").replace(/\s\/\/\s.*$/gm, "").replace(/https:\/\/github\.com\/\S+/g, "").split(B.siteUrl).join(""); // hosting URLs (code, share card) are not UI copy
     const hits = code.match(/send21/gi) ?? [];
     if (f === "app.js") assert.deepEqual(hits, ["send21"], "only the powered-by line");
     else assert.equal(hits.length, 0, `${f} mentions send21`);
@@ -67,4 +67,27 @@ test("public-content rules hold across the app folder", () => {
     for (const line of t.split("\n").filter((l) => /USDT/.test(l))) assert.match(line, /Solana|Ethereum/, `${f}: USDT only on Solana and Ethereum`);
     assert.doesNotMatch(t, /\b(we|send21|dewby) (hold|holds|keep|keeps|store|stores) (your )?(keys|funds|money)/i, `${f}: never claim custody`);
   }
+});
+
+test("share card: og/twitter meta point at a 1200x630 og.png on siteUrl", () => {
+  const html = read("index.html");
+  const meta = (k) => html.match(new RegExp(`<meta (?:property|name)="${k}" content="([^"]*)"`))?.[1];
+  assert.equal(meta("og:title"), B.shareTitle);
+  assert.equal(meta("og:description"), B.description);
+  assert.equal(meta("og:url"), B.siteUrl);
+  assert.equal(meta("og:image"), new URL("og.png", B.siteUrl).href);
+  assert.equal(meta("twitter:card"), "summary_large_image");
+  const png = readFileSync(join(WEB, "og.png"));
+  assert.equal(png.toString("ascii", 1, 4), "PNG");
+  assert.deepEqual([png.readUInt32BE(16), png.readUInt32BE(20)], [1200, 630]);
+  assert.ok(statSync(join(WEB, "og.png")).size < 1_000_000, "og.png under 1 MB");
+});
+
+test("manifest: installable fields, shortcuts and screenshots exist; favicon PNGs linked", () => {
+  const m = JSON.parse(read("manifest.webmanifest"));
+  for (const k of ["id", "lang", "start_url", "scope", "display", "categories", "shortcuts", "screenshots", "icons"]) assert.ok(m[k], k);
+  for (const x of [...m.screenshots, ...m.icons]) assert.ok(statSync(join(WEB, x.src)).size > 0, x.src);
+  assert.ok(m.icons.some((i) => i.purpose === "maskable"));
+  const html = read("index.html");
+  for (const f of ["icons/favicon-32.png", "icons/icon-180.png"]) { assert.ok(html.includes(`href="${f}"`), f); assert.ok(statSync(join(WEB, f)).size > 0, f); }
 });

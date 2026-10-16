@@ -1,6 +1,6 @@
 // Browser-only flow against the static (GitHub Pages) build, no server: onboarding, pair both ways
 // by link, request, a guest without the app opens the pay link, simulated payment, receipt link,
-// Paid on both homes, then the forced-dark palette. Dev tool (needs Chrome + playwright-core):
+// Paid on both homes, the forced-dark palette, the one-phone demo friend loop and the desktop hero. Dev tool (needs Chrome + playwright-core):
 //
 //   PLAYWRIGHT_MODULE=... CHROME_PATH=/usr/bin/google-chrome node scripts/e2e-browser.js https://send21io.github.io/send21-examples/dewby/
 const pw = await import(process.env.PLAYWRIGHT_MODULE ?? "playwright-core");
@@ -50,6 +50,17 @@ const fd = await (await ctx("sv-SE")).newPage();
 await fd.goto(base + "?fd"); await fd.waitForSelector(".slide");
 if (!(await fd.evaluate(() => document.documentElement.classList.contains("fd")))) throw new Error("?fd did not switch the palette");
 step("?fd forced-dark palette");
+const solo = await (await ctx("en-GB")).newPage();
+solo.on("pageerror", (e) => errors.push(`solo: ${e.message}`));
+await solo.goto(base); await solo.click("[data-act=tryDemo]"); await solo.fill("input[name=name]", "Robin"); await solo.click("button[type=submit]");
+await solo.waitForSelector("#amt"); await solo.click("#go"); await solo.click("[data-act=demoPay]");
+await solo.waitForSelector(".pill.paid", { timeout: 10000 }); await solo.goto(base + "#/"); await solo.waitForSelector(".status.paid");
+step("one phone: demo friend pays a request (request, paid, home)");
+const desk = await (await b.newContext({ viewport: { width: 1280, height: 860 } })).newPage();
+await desk.goto(base); await desk.waitForSelector(".deskhero .openphone svg");
+const ph = await desk.locator(".phone").boundingBox();
+if (!ph || ph.width > 440 || !(await desk.locator(".phone .slide").first().isVisible())) throw new Error("desktop hero/phone layout");
+step("desktop: landing + QR + the app in a phone frame");
 const v = await (await alex.request.get(base + "sw.js")).text();
 console.log("sw cache:", v.match(/CACHE = "([^"]+)"/)?.[1]);
 if (errors.length) { console.log("PAGE ERRORS:\n" + errors.join("\n")); process.exitCode = 1; } else console.log("BROWSER-ONLY FLOW OK", base);

@@ -1,6 +1,6 @@
 // dewby: a white-label example app on send21. The money logic (lib/, server/) is shared with
 // apps/send21-pair; this file is only the UI. Brand values come from brand.js (window.BRAND).
-import { ASSETS, FINAL, cryptoLine, fiatForLocale, formatFiat, initials, mockBaseUnits, networkOf, pickAsset, randomId, splitAmount, statusText } from "./lib/core.js";
+import { ASSETS, DEMO_ADDRESSES, FINAL, avatarColor, cryptoLine, encodeCard, fiatForLocale, formatFiat, initials, mockBaseUnits, networkOf, pickAsset, randomId, splitAmount, statusText } from "./lib/core.js";
 import { serverApi } from "./lib/server-api.js";
 import { staticApi } from "./lib/static-api.js";
 import qrcode from "./vendor/qrcode.js";
@@ -123,9 +123,62 @@ function confetti() {
   box.className = "confetti";
   box.setAttribute("aria-hidden", "true");
   box.innerHTML = Array.from({ length: 40 }, (_, i) => `<i class="${i % 3 ? "dot" : "dew"}" style="left:${Math.random() * 100}%;--c:${CONFETTI[Math.floor(Math.random() * CONFETTI.length)]};--x:${(Math.random() * 120 - 60).toFixed(0)}px;--r:${(Math.random() * 540 - 270).toFixed(0)}deg;--t:${(1.4 + Math.random() * 1.2).toFixed(2)}s;--dl:${(Math.random() * .3).toFixed(2)}s"></i>`).join("");
-  document.body.appendChild(box);
+  (document.querySelector(".phone") ?? document.body).appendChild(box);
   setTimeout(() => box.remove(), 3000);
 }
+/** Shrinks big numbers (amounts) until they fit their box, so 10 000,00 kr never clips on a 360 px phone. */
+function fit(root = $app) {
+  for (const el of root.querySelectorAll("[data-fit]")) {
+    el.style.fontSize = "";
+    let size = parseFloat(getComputedStyle(el).fontSize);
+    const min = Number(el.dataset.fit) || 28;
+    while (el.scrollWidth > el.clientWidth + 1 && size > min) { size -= 2; el.style.fontSize = `${size}px`; }
+  }
+}
+function fitInput($amt) {
+  const box = $amt.parentElement, ccy = box.querySelector(".ccy");
+  const room = box.clientWidth - (ccy?.offsetWidth ?? 0) - 16;
+  const chars = Math.max(1, $amt.value.length);
+  const size = Math.max(36, Math.min(84, room / (chars * 0.62 + 0.3)));
+  $amt.style.fontSize = `${size}px`;
+  $amt.style.width = `${chars + 0.3}ch`;
+}
+
+// ---- demo friend: one person can try the whole loop on one phone (mock modes only) ----
+const DEMO_NAME = "Demo friend";
+const isDemo = (c) => c && c.name === DEMO_NAME && localStorage.getItem(K("demo.id")) === c.id;
+const demoFriend = () => me?.contacts.find(isDemo);
+async function addDemoFriend() {
+  if (cfg.mode !== "mock") throw new Error("The demo friend is for mock mode");
+  if (demoFriend()) return demoFriend();
+  let code;
+  if (cfg.static) {
+    const id = randomId();
+    code = encodeCard({ v: 1, i: id, n: DEMO_NAME, c: avatarColor(id), a: DEMO_ADDRESSES });
+    localStorage.setItem(K("demo.id"), id);
+  } else {
+    // A second mock user on this server, paired with you. Its token is thrown away: you only ever see it from your side.
+    const post = await fetch("api/users", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: DEMO_NAME, fiat: me.user.fiat }) }).then((r) => r.json());
+    const info = await fetch("api/me", { headers: { Authorization: `Bearer ${post.token}` } }).then((r) => r.json());
+    code = info.user.pair_path.split("/p/")[1];
+    localStorage.setItem(K("demo.id"), post.user.id);
+  }
+  await api.addContact(code);
+  me = await api.me();
+  return demoFriend();
+}
+const demoBtn = (cls = "btn secondary") => cfg.mode === "mock" ? `<button class="${cls}" type="button" data-act="demoFriend">${icon("sparkles")}Try it with a demo friend</button>` : "";
+async function startDemo() {
+  const f = await addDemoFriend();
+  toast(`${DEMO_NAME} added`, "user-plus");
+  go(`#/new?mode=request&to=${f.id}&amount=120&note=Pizza&demo=1`);
+}
+/** Pay or get paid by the demo friend: open the pay screen and let the friend's side happen by itself. */
+function demoPlay(r) {
+  sessionStorage.setItem(K("autosim"), r.id);
+  go(r.pay_path.startsWith("#") ? r.pay_path : `#${r.pay_path}`);
+}
+
 let toastTimer;
 function toast(text, ic = "check") {
   const t = document.getElementById("toast");
@@ -190,7 +243,7 @@ async function render() {
   }
 }
 function mount(html, handlers = {}) {
-  const all = { theme: () => { setTheme(theme() === "dark" ? "light" : "dark"); render(); }, ...handlers };
+  const all = { theme: () => { setTheme(theme() === "dark" ? "light" : "dark"); render(); }, demoFriend: () => startDemo(), ...handlers };
   $app.innerHTML = html;
   addEdges($app);
   $app.onclick = async (e) => {
@@ -208,7 +261,9 @@ function mount(html, handlers = {}) {
     try { await all[f.dataset.act](f, e); } catch (err) { toast(err.message, "alert"); } finally { if (b && document.contains(b)) b.disabled = false; }
   };
   $app.oninput = (e) => all.input?.(e.target, e);
+  fit();
   window.scrollTo(0, 0);
+  $app.scrollTop = 0;
 }
 const footer = () => `<footer class="foot">
   <span class="l">${icon("shield")}You sign in your own wallet. No one here holds your keys or funds.</span>
@@ -216,8 +271,8 @@ const footer = () => `<footer class="foot">
 
 // ---- onboarding: 3 cards, then a name -------------------------------------------
 const SLIDES = [
-  { ic: "qr", c: "mint", h: "Scan a friend", p: "One scan and you're connected." },
-  { ic: "split", c: "lime", h: "Ask. Split. Done.", p: "Big bill? Split it in a tap." },
+  { ic: "arrow-down-left", c: "mint", h: "Pay friends back", p: "Ask, split a bill, or show a QR. Test money only." },
+  { ic: "qr", c: "lime", h: "Scan a friend", p: "One scan and you're connected." },
   { ic: "shield", c: "pop", h: "Your wallet signs", p: "Your keys, your money. Always." },
 ];
 function screenOnboarding() {
@@ -233,8 +288,10 @@ function screenOnboarding() {
       </div>
       <div class="dots">${SLIDES.map((_, i) => `<button type="button" data-act="dot" data-i="${i}" aria-label="Card ${i + 1}" aria-current="${i === 0}"></button>`).join("")}</div>
       <button class="btn primary big" data-act="next" id="next">Next ${icon("chevron-right")}</button>
+      ${cfg.mode === "mock" ? `<button class="btn ghost" data-act="tryDemo">${icon("sparkles")}Try it alone with a demo friend</button>` : ""}
     </div>`, {
     skip: done,
+    tryDemo: () => { sessionStorage.setItem(K("wantDemo"), "1"); done(); },
     dot: (el) => to(Number(el.dataset.i)),
     next: () => (at >= SLIDES.length - 1 ? done() : to(at + 1)),
   });
@@ -256,7 +313,7 @@ function screenSetup() {
     <header class="bar">${wordmark()}</header>
     <div class="setup">
       <div class="hi">${mark("mark xl wave")}</div>
-      <h1>Hey! What's your name?</h1>
+      <h1>${sessionStorage.getItem(K("wantDemo")) ? "First, your name" : "Hey! What's your name?"}</h1>
       <p class="muted lead">No email. No password.</p>
       <form data-act="start">
         <label class="field"><span>${icon("pen")}Name</span><input name="name" autocomplete="nickname" maxlength="40" required placeholder="Alex"></label>
@@ -270,6 +327,11 @@ function screenSetup() {
       await api.signup({ name: f.name.value, fiat: f.fiat.value });
       toast(`Hi, ${f.name.value.trim()}`, "sparkles");
       window.dispatchEvent(new Event("app-signed-in"));
+      if (sessionStorage.getItem(K("wantDemo"))) {
+        sessionStorage.removeItem(K("wantDemo"));
+        me = await api.me();
+        return startDemo();
+      }
       render();
     },
   });
@@ -290,7 +352,9 @@ function activityItem(r) {
 function notices() {
   let out = "";
   if (!me.contacts.length) {
-    out += `<div class="notice pop">${icon("user-plus")}<div><b>Add your first friend</b><br><span class="muted small">Show your code. They scan. Done.</span><a class="btn primary" href="#/me">${icon("qr")}My code</a></div></div>`;
+    out += `<div class="notice pop">${icon("user-plus")}<div><b>Add your first friend</b><br><span class="muted small">Show your code. They scan. Done.</span><a class="btn primary" href="#/me">${icon("qr")}My code</a>${demoBtn()}</div></div>`;
+  } else if (demoFriend() && !me.activity.length) {
+    out += `<div class="notice pop">${icon("sparkles")}<div><b>Try the loop</b><br><span class="muted small">Ask ${DEMO_NAME} for 120 and watch it get paid.</span><a class="btn primary" href="#/new?mode=request&to=${esc(demoFriend().id)}&amount=120&note=Pizza&demo=1">${icon("arrow-down-left")}Ask ${DEMO_NAME}</a></div></div>`;
   } else if ("Notification" in window && Notification.permission === "default" && !localStorage.getItem(K("notif.skip"))) {
     if (isIOS && !standalone) {
       out += `<div class="notice">${icon("bell")}<div><b>Get pinged</b><br><span class="muted small">On iPhone: Share, “Add to Home Screen”, then open it from there.</span></div></div>`;
@@ -332,7 +396,7 @@ function screenHome() {
     <section class="bubble" aria-label="Summary">
       <span class="dew d1"></span><span class="dew d2"></span><span class="dew d3"></span>
       <div class="lbl">${icon("arrow-down-left", { size: 16 })}Owed to you</div>
-      <div class="num">${esc(money(owed, mine))}</div>
+      <div class="num" data-fit="30">${esc(money(owed, mine))}</div>
       <div class="sub"><span class="tag">${icon("arrow-up-right")}${esc(money(owe, mine))} to pay</span><span class="tag">${icon("check")}${paidIn} paid</span></div>
     </section>
     <nav class="tiles" aria-label="Actions">
@@ -346,7 +410,7 @@ function screenHome() {
     <div class="contacts"><a class="contact" href="#/me" aria-label="Add a friend"><span class="avatar add" aria-hidden="true">${icon("plus", { size: 26 })}</span><span>Add</span></a>${people}</div>
     ${splits.length ? `<h2>${icon("split")}Splits</h2>${splits.map((s) => splitCard(s)).join("")}` : ""}
     <h2>${icon("clock")}Activity</h2>
-    ${me.activity.length ? `<ul class="activity">${me.activity.map(activityItem).join("")}</ul>` : `<div class="empty">${mark("mark lg bob")}<b>All fresh. Nothing yet.</b></div>`}
+    ${me.activity.length ? `<ul class="activity">${me.activity.map(activityItem).join("")}</ul>` : `<div class="empty">${mark("mark lg bob")}<b>All fresh. Nothing yet.</b><span class="small">Requests and payments show up here.</span></div>`}
     ${footer()}`, {
     person: (el) => go(`#/new?mode=request&to=${el.dataset.id}`),
     notif: enableNotifications,
@@ -491,7 +555,7 @@ function screenNew(query) {
   let lastAmt = "";
   function update() {
     const $amt = $app.querySelector("#amt");
-    $amt.style.width = `${Math.min(9, Math.max(1, $amt.value.length)) + 0.3}ch`;
+    fitInput($amt);
     if ($amt.value !== lastAmt && !calm()) { $amt.classList.remove("bump"); void $amt.offsetWidth; $amt.classList.add("bump"); }
     lastAmt = $amt.value;
     const amt = amountVal();
@@ -538,6 +602,7 @@ function screenNew(query) {
       const kind = mode === "pay" ? "send" : mode;
       const reqs = await api.createRequests({ kind, contactIds: [...selected], amount: amountVal(), fiat: myFiat, note: f.note.value.trim(), includeMe, clientKey: f.dataset.key });
       if (kind === "request") go(`#/sent?ids=${reqs.map((r) => r.id).join(",")}`);
+      else if (kind === "send" && isDemo(target())) demoPlay(reqs[0]);
       else go(reqs[0].pay_path.startsWith("#") ? reqs[0].pay_path : `#${reqs[0].pay_path}`);
     },
   };
@@ -563,13 +628,16 @@ function drawSent(ids) {
       <b class="amt">${esc(money(r.fiat_amount, r.fiat))}</b>
       <button class="iconbtn" data-act="share" data-url="${esc(api.payUrl(r))}" data-name="${esc(r.payer_name)}" aria-label="${cfg.static ? "Send" : "Share"} link to ${esc(r.payer_name)}">${icon("share")}</button></div>`).join("");
   const allPaid = items.length && items.every((r) => r.status === "paid");
+  const demoReq = items.find((r) => r.status === "awaiting" && isDemo({ id: r.from_user, name: r.payer_name }));
   mount(`
     <header class="bar">${mark()}<h1>${split ? "Split sent" : "Request sent"}</h1></header>
     ${split ? `<div class="who">${ring(items.filter((r) => r.status === "paid").length, items.length, "lg")}<div class="title"><b>${esc(split.title)}</b> · ${esc(money(items.reduce((a, r) => a + r.fiat_amount, 0), items[0].fiat))}</div></div>`
       : allPaid ? splash() : `<div class="who"><span class="avatar xl sentic" aria-hidden="true">${icon("send", { size: 44 })}</span></div>`}
     <p class="center muted b">${cfg.static ? "Send them the link." : "They get pinged. Track it here."}</p>
     ${rows}
-    <a class="btn primary" href="#/" style="margin-top:18px">${icon("check")}Done</a>`, {
+    ${demoReq ? `<div class="notice pop">${icon("sparkles")}<div><b>${DEMO_NAME} got your request</b><br><span class="muted small">Watch them pay it (simulated, test money).</span><button class="btn primary" data-act="demoPay">${icon("play")}Let ${DEMO_NAME} pay</button></div></div>` : ""}
+    <a class="btn ${demoReq ? "secondary" : "primary"}" href="#/" style="margin-top:18px">${icon("check")}Done</a>`, {
+    demoPay: () => demoPlay(demoReq),
     share: (el) => share(el.dataset.url, B.name, `${me.user.name} asks you for money on ${B.name}`),
   });
 }
@@ -624,7 +692,7 @@ async function screenPay(id, k) {
       <div class="paycard ${paid ? "is-paid" : ""}">
         ${paid ? splash() : `<div class="who">${face}</div>`}
         <div class="who"><div class="title">${paid ? `<span class="yay">${mine ? "You got paid!" : "Paid!"}</span>` : head}</div></div>
-        <p class="bigamt">${esc(money(view.fiat_amount, view.fiat))}</p>
+        <p class="bigamt" data-fit="32">${esc(money(view.fiat_amount, view.fiat))}</p>
         <p class="crypto">${icon("droplet")}<span>${esc(cryptoText)}${view.testnet ? " · testnet" : ""}</span></p>
         ${view.note ? `<div class="note"><span>${icon("pen")}${esc(view.note)}</span></div>` : ""}
         <p class="center" style="margin:10px 0 0">${chip(view.status, statusLine, !!mine, "pill", 'role="status"')}</p>
@@ -651,6 +719,10 @@ async function screenPay(id, k) {
     if (celebrate) { confetti(); navigator.vibrate?.([30, 40, 60]); }
   };
   draw();
+  if (sessionStorage.getItem(K("autosim")) === view.id && !FINAL.has(view.status)) {
+    sessionStorage.removeItem(K("autosim"));
+    setTimeout(() => api.simulate(id, k, "ok").then(() => toast(`${DEMO_NAME} is paying…`, "play")).catch((e) => toast(e.message, "alert")), 900);
+  }
   const off = api.subscribePay(id, k, (v) => { const changed = v.status !== view.status; view = v; if (changed) { draw(v.status === "paid"); if (v.status === "paid") toast("Paid"); } });
   cleanup.push(off);
 }
@@ -661,7 +733,7 @@ async function screenReceipt(enc) {
   mount(`<header class="bar">${mark()}<h1>Paid</h1></header>
     <div class="paycard is-paid">${splash()}
     <div class="who"><div class="title"><span class="yay">${esc(r.payer_name ?? "They")} paid you!</span></div></div>
-    <p class="bigamt">${esc(money(r.fiat_amount, r.fiat))}</p>
+    <p class="bigamt" data-fit="32">${esc(money(r.fiat_amount, r.fiat))}</p>
     <p class="center" style="margin:10px 0 0">${chip("paid", "Paid ✓", true, "pill")}</p></div>
     <a class="btn primary" href="#/" style="margin-top:20px">${icon("check")}Done</a>`);
   confetti();
@@ -711,6 +783,23 @@ function screenSettings() {
   });
 }
 
+// ---- desktop: a small landing beside the phone, with a QR to open it on a phone ----
+function deskHero() {
+  const el = document.getElementById("deskhero");
+  if (!el) return;
+  const url = location.href.split("#")[0].split("?")[0];
+  el.innerHTML = `${wordmark()}
+    <h1>${esc(B.tagline)}</h1>
+    <ul>
+      <li>${icon("arrow-down-left")}<span><b>Pay friends back.</b> Ask in your own money.</span></li>
+      <li>${icon("split")}<span><b>Split a bill.</b> Everyone gets their share.</span></li>
+      <li>${icon("qr")}<span><b>Show a QR.</b> Anyone can pay, no app needed.</span></li>
+    </ul>
+    <div class="openphone">${qrBox(url, `QR code to open ${B.name} on your phone`)}<div><b>Open it on your phone</b><span class="muted small">Scan with the camera. Or try it right here: tap “Try it alone with a demo friend”.</span></div></div>
+    <p class="small muted">${icon("flask", { size: 16 })}Test money only. You sign in your own wallet; nobody here holds your keys or funds.</p>
+    <p class="small"><a href="${esc(B.codeUrl)}" rel="noopener">${icon("code", { size: 16 })}Source code</a></p>`;
+}
+
 // ---- start -------------------------------------------------------------------
 async function start() {
   cfg = await api.config();
@@ -721,6 +810,7 @@ async function start() {
     : `<span>${icon("flask", { size: 14 })}test mode</span><span class="sr"> · test money only, nothing here has value</span>`;
   if (cfg.mode === "api") badge.classList.add("live");
   setTheme(theme());
+  deskHero();
   if ("serviceWorker" in navigator && isSecureContext) navigator.serviceWorker.register("sw.js").catch(() => {});
   window.addEventListener("hashchange", render);
   let liveOff = null;

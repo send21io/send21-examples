@@ -16,7 +16,7 @@ test("serves dewby's own UI, with config.js switched to the server backend", asy
   const index = await s.call("GET", "/");
   assert.equal(index.status, 200);
   assert.match(index.text, /<script src="brand\.js"><\/script>/);
-  assert.doesNotMatch(index.text, /send21/i);
+  assert.doesNotMatch(index.text.split(loadBrand().siteUrl).join(""), /send21/i); // the share-card URLs are where it is hosted
   assert.match(index.headers.get("content-security-policy"), /script-src 'self'/);
   const cfg = await s.call("GET", "/config.js");
   assert.equal(cfg.text.trim(), 'window.APP_BOOT = { backend: "server", mode: "mock" };');

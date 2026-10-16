@@ -10,7 +10,9 @@ Friends connect with one scan, then ask each other for money, split a bill, pay 
 
 ![Onboarding, empty home, home, pay, paid, split, split progress, my code](screenshots/overview.png)
 
-**Try it on two phones:** https://send21io.github.io/send21-examples/dewby/ (runs fully in the browser in mock mode).
+**Try it:** https://send21io.github.io/send21-examples/dewby/ (runs fully in the browser in mock mode). On two phones, or alone: tap **Try it alone with a demo friend** and a fake friend is added, you ask them for 120, tap **Let Demo friend pay**, and watch it turn Paid. On a desktop browser the page shows a short landing next to the app in a phone frame, with a QR to open it on your phone.
+
+![One phone, demo friend: request, sent, paid](screenshots/20-demo-request.png) ![](screenshots/21-demo-sent.png) ![](screenshots/22-demo-paid.png)
 
 ## Look and feel
 
@@ -39,6 +41,8 @@ window.BRAND = {
   description: "…",              // manifest and <meta name="description">
   storagePrefix: "dewby",        // browser storage keys, keeps apps on one origin apart
   poweredBy: true,               // tiny "powered by send21" line in Settings > About
+  siteUrl: "https://…/dewby/",   // where you host it: og:url, og:image, canonical
+  shareTitle: "…",               // og:title / twitter:title
   codeUrl: "https://github.com/…",
   light: { bg, surface, ink, muted, line, mint, lime, sea, pop, link, ok, warn, bad },
   dark: { … },                   // optional dark theme
@@ -49,8 +53,8 @@ window.BRAND = {
 
 1. Edit `web/brand.js` (name, colors, storage prefix).
 2. Replace `web/icons/mark.svg` with your symbol (and `wordmark.svg` / `logo.svg` if you like; the UI draws the wordmark inline in `app.js`, swap the `wordmark()` helper for your own or for plain text).
-3. Run `npm run brand`. It rewrites `web/manifest.webmanifest` and the `<title>`, description, home-screen title and theme color in `web/index.html`, and with Chrome available (`PLAYWRIGHT_MODULE=… CHROME_PATH=… npm run brand`) redraws the PNG icons from your mark.
-4. `npm test` checks the result: brand keys, WCAG AA contrast for every text color on its background, manifest and HTML in sync, and no stray send21 branding in the UI.
+3. Run `npm run brand`. It rewrites `web/manifest.webmanifest` and the `<title>`, description, home-screen title, theme color and share-card meta (`og:*`, `twitter:*`, canonical) in `web/index.html`, and with Chrome available (`PLAYWRIGHT_MODULE=… CHROME_PATH=… npm run brand`) redraws the PNG icons and favicons from your mark. Then `npm run screenshots && npm run og` redraws the 1200×630 share card (`web/og.png`) and the manifest screenshots (`web/shots/`) in your colors.
+4. `npm test` checks the result: brand keys, WCAG AA contrast for every text color on its background, manifest and HTML in sync, the share card (1200×630, meta pointing at `siteUrl`), and no stray send21 branding in the UI.
 
 `web/theme.js` turns the palette into CSS custom properties before the first paint, so `styles.css` never hard-codes a brand color. The server reads the same file (`server/brand.js`), so the memo in the payer's wallet carries your name too.
 
@@ -99,7 +103,7 @@ Samsung Internet's default dark mode repaints every page and ignores `color-sche
 
 ## Screenshots
 
-`PLAYWRIGHT_MODULE=… CHROME_PATH=/usr/bin/google-chrome npm run screenshots` walks the mock flow with three users at 390×844 and writes `screenshots/` (01 onboarding … 19 forced dark, plus `overview.png`). `node scripts/e2e-browser.js <url>` runs the browser-only flow against a Pages build.
+`PLAYWRIGHT_MODULE=… CHROME_PATH=/usr/bin/google-chrome npm run screenshots` walks the mock flow with three users at 390×844 and writes `screenshots/` (01 onboarding … 19 forced dark, 20–22 the one-phone demo friend loop, 16 and 23 desktop, plus `overview.png`). `node scripts/e2e-browser.js <url>` runs the browser-only flow against a Pages build.
 
 ## Credits
 

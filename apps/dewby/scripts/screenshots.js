@@ -54,7 +54,7 @@ await alex.waitForSelector(".bubble");
 await shot(alex, "03-home-empty.png");
 
 await alex.click("a.btn:has-text('My code')");
-await alex.waitForSelector(".qr svg");
+await alex.waitForSelector("main .qr svg");
 await shot(alex, "04-my-code.png");
 const pairUrl = await alex.locator(".linkbox").textContent();
 
@@ -140,6 +140,28 @@ await desk.goto(base + "/#/");
 await desk.waitForSelector(".bubble");
 await shot(desk, "16-desktop.png");
 
+const fresh = await (await browser.newContext({ viewport: { width: 1280, height: 860 }, locale: "en-GB" })).newPage(); watch(fresh, "desk-first");
+await fresh.goto(base + "/");
+await fresh.waitForSelector(".slide");
+await shot(fresh, "23-desktop-first-run.png");
+
+// One person, one phone: the demo friend walks the whole loop (request, the friend pays, paid).
+{
+  const solo = await (await phone("en-GB")).newPage(); watch(solo, "solo");
+  await solo.goto(base + "/");
+  await solo.click("[data-act=tryDemo]");
+  await solo.fill("input[name=name]", "Robin");
+  await solo.click("button[type=submit]");
+  await solo.waitForSelector("#amt");
+  await shot(solo, "20-demo-request.png");
+  await solo.click("#go");
+  await solo.waitForSelector("[data-act=demoPay]");
+  await shot(solo, "21-demo-sent.png");
+  await solo.click("[data-act=demoPay]");
+  await solo.waitForSelector(".pill.paid", { timeout: 15000 });
+  await shot(solo, "22-demo-paid.png", 1300, true);
+}
+
 // Forced dark (Samsung Internet's default): Chrome's forceDarkModeEnabled is the closest emulation.
 // The app must detect it and switch to its forced-dark palette. ?fd previews the same palette.
 {
@@ -149,7 +171,7 @@ await shot(desk, "16-desktop.png");
   if (!(await fd.evaluate(() => document.documentElement.classList.contains("fd")))) errors.push("forced dark was not detected");
   await shot(fd, "17-home-empty-forced-dark.png");
   await fd.click("a.btn:has-text('My code')");
-  await fd.waitForSelector(".qr img");
+  await fd.waitForSelector("main .qr img");
   await shot(fd, "18-my-code-forced-dark.png");
   await fdBrowser.close();
   const pv = await (await phone("sv-SE")).newPage(); watch(pv, "fd-preview");

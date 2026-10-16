@@ -8,6 +8,8 @@ window.BRAND = {
   description: "Ask friends for money, split the bill, pay back. You sign in your own wallet. Testnet example.",
   storagePrefix: "dewby",              // localStorage/sessionStorage keys; keep apps on one origin apart
   poweredBy: true,                     // tiny "powered by send21" line in Settings > About
+  siteUrl: "https://send21io.github.io/send21-examples/dewby/", // where it's hosted: share card URLs (og:*)
+  shareTitle: "dewby: pay friends back, split bills, show a QR",
   codeUrl: "https://github.com/send21io/send21-examples/tree/main/apps/dewby",
 
   // Light is the default theme. Every color the UI uses comes from here (CSS custom properties).

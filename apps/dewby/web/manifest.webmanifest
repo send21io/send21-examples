@@ -8,6 +8,69 @@
   "orientation": "portrait",
   "background_color": "#F5FAF3",
   "theme_color": "#F5FAF3",
+  "id": "./",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": [
+    "finance",
+    "social",
+    "utilities"
+  ],
+  "shortcuts": [
+    {
+      "name": "Request",
+      "url": "./#/new?mode=request",
+      "icons": [
+        {
+          "src": "icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Split a bill",
+      "url": "./#/new?mode=request&split=1",
+      "icons": [
+        {
+          "src": "icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "My code",
+      "url": "./#/me",
+      "icons": [
+        {
+          "src": "icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "shots/home.png",
+      "sizes": "780x1688",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Home: what you're owed, four actions, friends"
+    },
+    {
+      "src": "shots/paid.png",
+      "sizes": "780x1688",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Paid"
+    },
+    {
+      "src": "shots/desktop.png",
+      "sizes": "1280x860",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "On desktop"
+    }
+  ],
   "icons": [
     {
       "src": "icons/icon-192.png",
