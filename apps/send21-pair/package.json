@@ -6,12 +6,12 @@
   "type": "module",
   "license": "MIT",
   "engines": {
-    "node": ">=22.13"
+    "node": ">=22.5"
   },
   "scripts": {
     "start": "node server/server.js",
     "demo": "PAIR_MODE=demo node server/server.js",
-    "test": "node --test \"test/**/*.test.js\"",
+    "test": "node --test test/*.test.js",
     "build:pages": "node scripts/build-pages.js",
     "screenshots": "node scripts/screenshots.js"
   }

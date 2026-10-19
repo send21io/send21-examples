@@ -6,11 +6,11 @@
   "type": "module",
   "license": "MIT",
   "engines": {
-    "node": ">=22.13"
+    "node": ">=22.5"
   },
   "scripts": {
     "start": "node server.js",
     "send-sample": "node ../webhook-receiver/send-sample.js",
-    "test": "node --test \"test/**/*.test.js\""
+    "test": "node --test test/*.test.js"
   }
 }

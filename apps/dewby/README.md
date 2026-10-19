@@ -4,6 +4,8 @@
 
 > **TESTNET ONLY.** Test money, test networks, nothing here has value. An example app, not a product.
 
+Needs **Node.js 22.5+** (`node:sqlite`), same as send21 pair.
+
 **dewby is built on [send21](https://send21.io).** It is a white-label version of [send21 pair](../send21-pair): the same payments engine with its own name, logo, colors, type and UI. Use it as a template for your own branded P2P money app: change one file and you have your own.
 
 Friends connect with one scan, then ask each other for money, split a bill, pay back, or show a QR anyone can pay. Each payment is a send21 draft to the **receiver's own wallet address**; the payer taps **Open wallet** and signs in their own wallet. send21 never holds keys or funds, never signs and never broadcasts, and neither does this app.

@@ -8,7 +8,7 @@ Two people connect by scanning each other's QR code or opening a link. After tha
 
 **Try it on two phones:** https://send21io.github.io/send21-examples/pair/ (runs fully in the browser in mock mode, see [Hosted demo](#hosted-demo)).
 
-- An installable PWA (manifest, service worker, Web Push with VAPID) and a small Node.js backend with no npm dependencies (`node:sqlite`, `node:test`, `node:crypto`).
+- An installable PWA (manifest, service worker, Web Push with VAPID) and a small Node.js backend with no npm dependencies (`node:sqlite`, `node:test`, `node:crypto`). Needs **Node.js 22.5+** for `node:sqlite`.
 - The backend holds the scoped send21 key. The browser never sees it.
 - Product thinking, use-case ranking, constraints, data model and privacy: [DESIGN.md](DESIGN.md).
 

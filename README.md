@@ -57,7 +57,7 @@ The testnet demo covers Bitcoin, Solana, Ethereum, Base, Arbitrum and Polygon te
 
 ## Setup
 
-You need Node.js 20.12 or newer.
+You need Node.js 20.12 or newer. The P2P apps ([apps/send21-pair](apps/send21-pair), [apps/dewby](apps/dewby)) and [examples/webhook-receiver-sqlite](examples/webhook-receiver-sqlite) use `node:sqlite`, so they need **Node.js 22.5 or newer**.
 
 ```sh
 cp .env.example .env
