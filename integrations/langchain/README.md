@@ -1,6 +1,6 @@
 # langchain-send21
 
-send21 tools for LangChain. [send21](https://send21.io): crypto pay links and API for people and AI agents. Let an agent prepare a pay link and check its status without holding keys.
+[send21](https://send21.io) tools for LangChain. Crypto pay links and API for people and AI agents. Let an agent prepare a pay link and check its status without holding keys.
 
 send21 is non-custodial software that prepares payment instructions. It never holds keys or funds, never signs and never broadcasts. The scoped API key this package uses can create a pay link but cannot move money: the payer signs in their own wallet.
 

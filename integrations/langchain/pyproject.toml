@@ -1,7 +1,7 @@
 [project]
 name = "langchain-send21"
-version = "0.1.1"
-description = "LangChain tools for send21, crypto pay links and API for people and AI agents. The payer signs in their own wallet."
+version = "0.1.2"
+description = "send21 tools for LangChain. Crypto pay links and API for people and AI agents. The payer signs in their own wallet."
 readme = "README.md"
 license = { text = "MIT" }
 authors = [{ name = "send21", email = "info@send21.io" }]
