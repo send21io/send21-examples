@@ -52,7 +52,7 @@ Throughout, the payer's own wallet signs and broadcasts the transfer. send21 nev
 ## Safety rules
 
 - **Webhook signature:** only `X-Send21-Signature-V2` is accepted (HMAC-SHA256 over `<timestamp>.<delivery id>.<raw body>`, timestamp within 300 s). The body-only legacy header is refused on its own because it can be replayed.
-- **Duplicates, twice over:** send21 dedupes its own deliveries, and this receiver also runs its own check: the `X-Send21-Delivery` id is stored in the same SQLite transaction as the status change, so a retry or a replay changes nothing, even after a restart.
+- **Duplicates:** send21 does not dedupe deliveries. Retries reuse the same `X-Send21-Delivery` id, and the receiver ignores deliveries it already handled. Here the `X-Send21-Delivery` id is stored in the same SQLite transaction as the status change, so a retry or a replay changes nothing, even after a restart.
 - **The stored request decides:** a delivery marks a request paid only if its draft id, amount (base units), asset and network match what this server stored when the request was made. Anything else is a *Mismatch*.
 - **Closed is final:** *Paid*, *Expired* and *Cancelled* never change again. Requests expire after 72 hours.
 - **Payment after close (done, in mock, demo and api):** money that arrives for a request that is already paid (another transaction), expired or cancelled doesn't reopen it. The request keeps its state, the transaction id is stored, both sides see a *Payment after close* card with the tx id (copyable) and the closed state, and the receiver gets a notification. Any refund is the receiver's call, from their own wallet. Try it in mock mode with *Simulate a payment after close* on a closed request.

@@ -101,7 +101,7 @@ Other env vars: `APP_DATA_DIR`, `APP_DB`, `APP_PUSH=off`, `PORT`, `HOST`. The we
 ## Safety, in short
 
 - The payer's own wallet signs and broadcasts. send21 never signs, never broadcasts and never holds funds; neither does dewby.
-- Webhooks: only `X-Send21-Signature-V2` (HMAC over timestamp, delivery id and raw body, within 300 s). send21 dedupes its deliveries, and this receiver also runs its own check on `X-Send21-Delivery`, stored in the same SQLite transaction as the status change.
+- Webhooks: only `X-Send21-Signature-V2` (HMAC over timestamp, delivery id and raw body, within 300 s). send21 does not dedupe deliveries. Retries reuse the same `X-Send21-Delivery` id, and the receiver ignores deliveries it already handled; here the `X-Send21-Delivery` id is stored in the same SQLite transaction as the status change.
 - A payment counts only if amount, asset and network match the stored request. Closed is final; a later payment shows a *Payment after close* card with the tx id and the closed state.
 - Amounts: digits and one separator, the currency's decimals, more than 0, at most 10 000. Names and notes lose invisible and bidi characters. Everything is escaped before it reaches the page. One tap at a time, idempotent forms.
 - Full list: [send21 pair, Safety rules](../send21-pair/README.md#safety-rules). Browser smoke test for every flow: `node scripts/smoke-browser.js <url>` (needs `PLAYWRIGHT_MODULE` and `CHROME_PATH`).
