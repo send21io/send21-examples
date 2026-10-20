@@ -14,6 +14,8 @@ npm install
 npm run typecheck
 ```
 
+Before a live run, approve `MY_SOLANA_ADDRESS`, `MY_BASE_ADDRESS` and `MY_LIGHTNING_ADDRESS` in send21: new accounts only accept receiving addresses the owner approved (sign in, passkey or authenticator code). Otherwise the tool explains 422 `address_not_approved` (or 403 `owner_not_confirmed` for an agent-created account the owner hasn't taken over) and nothing is created.
+
 ## Run
 
 ```sh

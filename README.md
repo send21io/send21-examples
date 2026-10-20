@@ -65,6 +65,8 @@ cp .env.example .env
 
 Calls that create something need an API key. The account owner creates scoped keys at https://send21.io/api-keys. `tools/list` and `get_fee_schedule` on the MCP server work without a key.
 
+**Approve your receiving addresses first.** New send21 accounts (created on or after 20 Oct 2026) only accept receiving addresses the owner approved, Lightning addresses included. Add them in the send21 app, or let an agent propose them with MCP `propose_receiving_address`, then sign in and approve each with a passkey or authenticator code. No API key can approve an address. Older accounts can opt in under Settings.
+
 Testing with your own key: use the live networks and create a small draft to your own address. A draft moves no money until someone signs it, so nothing moves while you integrate. Cancel it when you are done.
 
 ## mcp-payment-request
@@ -143,7 +145,18 @@ Claude Desktop, in `claude_desktop_config.json`, through the `mcp-remote` bridge
 }
 ```
 
-The server offers `create_payment_request`, `get_payment_request`, `create_draft`, `get_draft`, `get_draft_status`, `get_transaction_template`, `list_address_book`, `get_rate` and `get_fee_schedule`.
+The server offers `create_payment_request`, `get_payment_request`, `create_draft`, `get_draft`, `get_draft_status`, `list_draft_quotes`, `get_transaction_template`, `submit_lightning_proof`, `list_address_book`, `propose_receiving_address`, `get_account_status`, `create_account`, `get_rate` and `get_fee_schedule`.
+
+### Agent flow: approved addresses
+
+**Agents onboard themselves; humans approve where the money lands.**
+
+1. `get_account_status`: what still stands between the agent and a live pay link (owner confirmed, receiving-address policy, approved and waiting addresses, fees, next steps).
+2. `propose_receiving_address`: the agent proposes the owner's receiving address (`label`, `address`, `network`). It is saved unapproved and the owner gets an email.
+3. **The owner approves it**, signed in to send21 with a passkey or authenticator code. No API key, scope or agent can approve an address.
+4. `create_payment_request` with approved addresses only. Any other address gets 422 `address_not_approved` and nothing is created.
+
+No key yet? The agent can call `create_account` (`POST /api/v1/accounts/agent-signup`) with the owner's email and gets a limited bootstrap key. Until the owner takes the account over from the emailed link, creating anything returns 403 `owner_not_confirmed`. The agent never approves addresses, spends or signs: the payer signs in their own wallet. Details: https://send21.io/docs/mcp
 
 ## webhook-receiver
 
@@ -192,6 +205,11 @@ The `draft.amount_mismatch` sample in [samples.js](examples/webhook-receiver/sam
 ## Third-party examples
 
 - [PriorSeal: send21 payment draft binding](https://github.com/imokokok/PriorSeal/tree/main/examples/send21-payment-draft-binding-v1), built by the PriorSeal team. It hashes a send21 draft (JCS + SHA-256) into a signed authorization receipt, so a reviewer can follow draft, then payer signature, then on-chain payment as one checkable chain. Base Sepolia testnet only. Independent project, not maintained by send21.
+
+## Troubleshooting
+
+- **422 `address_not_approved`:** a receiving address isn't approved in your send21 account, so nothing was created. Sign in to send21, approve it (passkey or authenticator code), then retry.
+- **403 `owner_not_confirmed`:** an agent created the account (`create_account`) and the owner hasn't taken it over yet. The owner opens the emailed link (valid 72 hours) and sets up a passkey or password.
 
 ## What send21 does not do
 

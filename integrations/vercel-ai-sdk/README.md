@@ -46,6 +46,8 @@ Payment confirmations arrive as signed webhooks; see the webhook receiver in htt
 
 Prefer MCP? The same capabilities are on the hosted MCP server at https://send21.io/mcp.
 
+New send21 accounts only accept receiving addresses the owner approved: approve each `receiveOptions` address in send21 first (sign in, passkey or authenticator code). A 422 `address_not_approved` or 403 `owner_not_confirmed` comes back as a plain explanation the agent can relay, and nothing is created.
+
 ## Develop
 
 ```sh

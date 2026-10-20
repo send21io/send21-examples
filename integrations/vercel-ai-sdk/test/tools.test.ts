@@ -24,3 +24,14 @@ test("creates a pay link with fixed receive options", async () => {
   assert.equal(body.fiatCurrency, "EUR");
   assert.ok(seen.init.headers["Idempotency-Key"]);
 });
+
+test("explains 422 address_not_approved and 403 owner_not_confirmed", async () => {
+  for (const [status, code, re] of [[422, "address_not_approved", /not approved/], [403, "owner_not_confirmed", /taken over/]] as const) {
+    const fakeFetch = (async () => new Response(JSON.stringify({ error: code }), { status })) as unknown as typeof fetch;
+    const tools = send21Tools({ apiKey: "s21_test", fetch: fakeFetch, receiveOptions: [{ currency: "Usdc", network: "Solana", address: "OWN_ADDR" }] });
+    await assert.rejects(
+      tools.send21CreatePayLink.execute!({ fiatAmount: 25, fiatCurrency: "eur" } as any, { toolCallId: "1", messages: [] } as any),
+      re,
+    );
+  }
+});

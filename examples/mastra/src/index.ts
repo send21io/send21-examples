@@ -69,6 +69,15 @@ const mcp = new MCPClient({
   },
 });
 
+// send21 MCP 1.5.0: new accounts only use receiving addresses the owner approved,
+// and an agent-created account creates nothing until the owner takes it over.
+// https://send21.io/docs/mcp
+function explainSend21Error(text: string): string | null {
+  if (text.includes("address_not_approved")) return "422 address_not_approved: this receiving address is not approved in your send21 account, so nothing was created. Approve it in send21 (signed in, with a passkey or authenticator code), or propose it with propose_receiving_address and have the owner approve it, then retry.";
+  if (text.includes("owner_not_confirmed")) return "403 owner_not_confirmed: the owner has not taken over this agent-created send21 account yet, so nothing can be created. The owner opens the emailed link and sets up a passkey or password first.";
+  return null;
+}
+
 // MCP results arrive as structured content or as JSON text; normalise to an object.
 function unwrap(result: unknown): any {
   const r = result as any;
@@ -137,6 +146,7 @@ async function main(): Promise<void> {
           ctx,
         ),
       );
+      if (!pr?.payPath) throw new Error(explainSend21Error(JSON.stringify(pr)) ?? `create_payment_request failed: ${JSON.stringify(pr).slice(0, 300)}`);
       return { paymentRequestId: pr.id, payLink: new URL(pr.payPath, SITE).toString(), status: pr.status, expiresAt: pr.expiresAt };
     },
   });

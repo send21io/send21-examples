@@ -171,6 +171,7 @@ The response's `payPath` is appended to `https://send21.io` to make the pay link
 1. Create a scoped API key at https://send21.io/api-keys with `drafts:write` (create pay links) and `drafts:read` (status reads). No send21 key can move funds.
 2. Register `https://your-shop.example/webhooks/send21` at https://send21.io/webhooks and copy the signing secret (shown once).
 3. Copy `.env.example` to `.env`, fill it in, and start with your env loaded, for example `node --env-file=.env server.js`.
+4. Approve every `SEND21_OPTIONS` address in send21 (signed in, with a passkey or authenticator code). New accounts only accept approved receiving addresses; otherwise the log shows 422 `address_not_approved` and no pay link is created.
 
 | Variable | Default | Meaning |
 |---|---|---|

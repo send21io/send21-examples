@@ -32,6 +32,15 @@ const METHODS = ["MultiOutput", "Lightning"];
 
 type PayOption = { currency: string; network: string; address: string; method?: string };
 
+// send21 MCP 1.5.0: new accounts only use receiving addresses the owner approved,
+// and an agent-created account creates nothing until the owner takes it over.
+// https://send21.io/docs/mcp
+function explainSend21Error(text: string): string | null {
+  if (text.includes("address_not_approved")) return "422 address_not_approved: this receiving address is not approved in your send21 account, so nothing was created. Approve it in send21 (signed in, with a passkey or authenticator code), or propose it with propose_receiving_address and have the owner approve it, then retry.";
+  if (text.includes("owner_not_confirmed")) return "403 owner_not_confirmed: the owner has not taken over this agent-created send21 account yet, so nothing can be created. The owner opens the emailed link and sets up a passkey or password first.";
+  return null;
+}
+
 function usage(message?: string): never {
   if (message) console.error(`Error: ${message}\n`);
   console.error(
@@ -164,7 +173,7 @@ async function main() {
       .filter((c) => c.type === "text")
       .map((c) => c.text ?? "")
       .join("\n");
-    if (result.isError) throw new Error(text || `${TOOL} failed`);
+    if (result.isError) throw new Error(explainSend21Error(text) ?? (text || `${TOOL} failed`));
 
     const request = JSON.parse(text) as { id?: string; payPath?: string; status?: string; expiresAt?: string };
     if (!request.payPath) throw new Error(`No payPath in the response: ${text}`);

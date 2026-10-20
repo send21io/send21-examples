@@ -19,6 +19,18 @@ SUPPORTED = {
     "Eth": {"Ethereum", "Base", "Arbitrum"},
 }
 
+# send21 MCP 1.5.0: new accounts only use receiving addresses the owner approved,
+# and an agent-created account creates nothing until the owner takes it over.
+# https://send21.io/docs/mcp
+SEND21_ERRORS = {
+    "address_not_approved": "422 address_not_approved: this receiving address is not approved in your send21 account, so nothing was created. Approve it in send21 (signed in, with a passkey or authenticator code), or propose it with propose_receiving_address and have the owner approve it, then retry.",
+    "owner_not_confirmed": "403 owner_not_confirmed: the owner has not taken over this agent-created send21 account yet, so nothing can be created. The owner opens the emailed link and sets up a passkey or password first.",
+}
+
+
+def explain_send21_error(text: str) -> Optional[str]:
+    return next((msg for code, msg in SEND21_ERRORS.items() if code in text), None)
+
 
 class PayOption(BaseModel):
     currency: Literal["Btc", "Usdc", "Usdt", "Eurc", "Sol", "Eth"]
@@ -48,7 +60,7 @@ class Send21Client:
         headers = {"Authorization": f"Bearer {self.api_key}", **kw.pop("headers", {})}
         r = self.http.request(method, self.base_url + path, headers=headers, **kw)
         if r.status_code >= 400:
-            raise RuntimeError(f"send21 {r.status_code}: {r.text[:500]}")
+            raise RuntimeError(explain_send21_error(r.text) or f"send21 {r.status_code}: {r.text[:500]}")
         return r.json()
 
     def create_payment_request(self, body: dict) -> dict:

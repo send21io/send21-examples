@@ -29,6 +29,8 @@ Restart Cursor and check that `send21` shows its tools under Settings > MCP.
 
 **3. Ask for a pay link.** In Agent chat, paste the [sample prompt](sample-prompt.md) with your own receiving addresses. The agent calls `create_payment_request` and returns a `payPath`; the pay link is `https://send21.io` + `payPath`, for example `https://send21.io/pay/<token>`. The payer opens it, picks a currency (the rate locks then), scans one QR code and signs in their own wallet.
 
+New send21 accounts only accept receiving addresses the owner approved. Approve yours in send21 first, or let the agent propose them (`propose_receiving_address`) and approve them signed in, with a passkey or authenticator code; see the [agent flow](../README.md#agent-flow-approved-addresses). A 422 `address_not_approved` means an address still needs approval; nothing was created.
+
 Testing: account keys use the live networks (the test networks are for the [demo](https://send21.io/demo) only). A pay link moves no money until someone pays it, so make a small one to your own address and cancel it when you are done (`POST /api/v1/payment-requests/{id}/cancel`).
 
 ## Sample prompt

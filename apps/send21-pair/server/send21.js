@@ -33,7 +33,13 @@ async function call(fetchImpl, method, url, { key, body, idempotencyKey } = {}) 
   const text = await res.text();
   let json = null;
   try { json = text ? JSON.parse(text) : null; } catch { /* not JSON */ }
-  if (!res.ok) throw new Send21Error(json?.error ?? json?.title ?? `send21 answered ${res.status}`, res.status, json ?? text);
+  if (!res.ok) {
+    // New send21 accounts only accept receiving addresses the owner approved (https://send21.io/docs/mcp).
+    if (text.includes("address_not_approved")) {
+      throw new Send21Error("this receiving address is not approved in the send21 account yet (address_not_approved). The account owner approves it in send21, signed in with a passkey or authenticator code; nothing was created", res.status, json ?? text);
+    }
+    throw new Send21Error(json?.error ?? json?.title ?? `send21 answered ${res.status}`, res.status, json ?? text);
+  }
   return json;
 }
 

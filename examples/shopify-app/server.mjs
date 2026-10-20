@@ -118,7 +118,13 @@ async function send21(path, { method = 'GET', body, idempotencyKey } = {}) {
     method, headers, body: body === undefined ? undefined : JSON.stringify(body)
   });
   const json = await res.json().catch(() => null);
-  if (!res.ok) throw new Error(`send21 ${method} ${path}: ${res.status} ${JSON.stringify(json).slice(0, 300)}`);
+  if (!res.ok) {
+    // New send21 accounts only accept receiving addresses the owner approved (https://send21.io/docs/mcp).
+    const hint = JSON.stringify(json ?? '').includes('address_not_approved')
+      ? ' (address_not_approved: approve this receiving address in send21, signed in with a passkey or authenticator code, then retry)'
+      : '';
+    throw new Error(`send21 ${method} ${path}: ${res.status} ${JSON.stringify(json).slice(0, 300)}${hint}`);
+  }
   return json;
 }
 

@@ -13,4 +13,6 @@ npm start -- 25 EUR --option Eth:Base:<your-base-address> --option Btc:Mainnet:n
 
 Each `--option` is `Currency:Network:Address[:Method]`. Currencies: `Btc`, `Usdc`, `Usdt`, `Eurc`, `Sol`, `Eth`. Networks: `Mainnet` (Bitcoin), `Solana`, `Ethereum`, `Base`, `Arbitrum`, `Polygon`. Method is optional: `MultiOutput` (on-chain, default) or `Lightning` (Btc on Mainnet only).
 
+New send21 accounts only accept receiving addresses the owner approved: approve each `--option` address in send21 first (see the [agent flow](../../README.md#agent-flow-approved-addresses)). A 422 `address_not_approved` or 403 `owner_not_confirmed` is printed as a plain explanation, and nothing is created.
+
 `client-config/` has ready-to-copy MCP client config for Cursor and Claude Desktop. See the [main README](../../README.md) for details.

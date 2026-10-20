@@ -20,7 +20,7 @@ send21 prepares payment instructions. The payer opens the pay link and signs in 
    On n8n versions that block `$env` in nodes, also set `N8N_BLOCK_ENV_ACCESS_IN_NODE=false`.
 4. **Import.** Workflows > Import from File > `send21-pay-link-workflow.json`.
 5. **Register the webhook.** Put your public URL (`https://<your-n8n-host>/webhook/send21`) in the "POST /webhooks" node, activate the workflow, then run "Register webhook (run once)". Copy the signing secret from the response into `SEND21_WEBHOOK_SECRET` and restart n8n. Send a signed `test` delivery with `POST /api/v1/webhooks/{id}/test`.
-6. **Create a pay link.** Edit "Pay link settings" (amount, fiat currency, order id, your own receiving addresses) and run "Create pay link (run manually)". The "Pay link" node outputs `payLink`, `paymentRequestId`, `orderId` and `expiresAt`. Send the link to the payer.
+6. **Create a pay link.** Edit "Pay link settings" (amount, fiat currency, order id, your own receiving addresses) and run "Create pay link (run manually)". The "Pay link" node outputs `payLink`, `paymentRequestId`, `orderId` and `expiresAt`. Send the link to the payer. New send21 accounts only accept receiving addresses the owner approved: approve them in send21 first (passkey or authenticator code), or the request fails with 422 `address_not_approved` and nothing is created.
 
 When the payer signs and the payment reaches its confirmations, send21 posts `draft.confirmed` with your `orderId` and the `txId`. Replace "Mark order paid" with your shop, CRM or spreadsheet update.
 

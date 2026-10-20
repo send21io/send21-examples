@@ -28,6 +28,8 @@ Replace `s21_your_key_here` with your key and restart Claude Desktop. The header
 
 **3. Ask for a pay link.** Paste the [sample prompt](sample-prompt.md) with your own receiving addresses. Claude calls `create_payment_request` and returns a `payPath`; the pay link is `https://send21.io` + `payPath`, for example `https://send21.io/pay/<token>`. Open it: the payer picks a currency (the exchange rate locks then), scans one QR code and signs in their own wallet. Funds go straight from the payer's wallet to your address.
 
+New send21 accounts only accept receiving addresses the owner approved. Approve yours in send21 first, or let the agent propose them (`propose_receiving_address`) and approve them signed in, with a passkey or authenticator code; see the [agent flow](../README.md#agent-flow-approved-addresses). A 422 `address_not_approved` means an address still needs approval; nothing was created.
+
 Testing: account keys use the live networks (the test networks are for the [demo](https://send21.io/demo) only). A pay link moves no money until someone pays it, so make a small one to your own address and cancel it when you are done (`POST /api/v1/payment-requests/{id}/cancel`).
 
 ## Sample prompt
@@ -36,7 +38,7 @@ See [sample-prompt.md](sample-prompt.md). Option values come from the live `crea
 
 ## Tools
 
-`create_payment_request`, `get_payment_request`, `create_draft`, `get_draft`, `get_draft_status`, `list_draft_quotes`, `get_transaction_template`, `submit_lightning_proof`, `list_address_book`, `get_rate`, `get_fee_schedule`. `tools/list` and `get_fee_schedule` work without a key. Claude cannot sign or pay through send21: a human signs.
+`create_payment_request`, `get_payment_request`, `create_draft`, `get_draft`, `get_draft_status`, `list_draft_quotes`, `get_transaction_template`, `submit_lightning_proof`, `list_address_book`, `propose_receiving_address`, `get_account_status`, `create_account`, `get_rate`, `get_fee_schedule`. `tools/list` and `get_fee_schedule` work without a key. Claude cannot sign or pay through send21: a human signs.
 
 To learn when a link is paid, register a webhook (see [../n8n](../n8n) or [the webhook receiver](../examples/webhook-receiver)).
 

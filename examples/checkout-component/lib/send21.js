@@ -20,8 +20,12 @@ export function createSend21Client({ apiBase = "https://send21.io", apiKey, fetc
     });
     const json = await res.json().catch(() => null);
     if (!res.ok) {
-      const err = new Error(`send21 ${method} ${path}: ${res.status} ${JSON.stringify(json)?.slice(0, 300)}`);
+      // New send21 accounts only accept receiving addresses the owner approved (https://send21.io/docs/mcp).
+      const notApproved = (JSON.stringify(json) ?? "").includes("address_not_approved");
+      const hint = notApproved ? " (address_not_approved: approve this receiving address in send21, signed in with a passkey or authenticator code, then retry)" : "";
+      const err = new Error(`send21 ${method} ${path}: ${res.status} ${JSON.stringify(json)?.slice(0, 300)}${hint}`);
       err.status = res.status;
+      if (notApproved) err.code = "address_not_approved";
       throw err;
     }
     return json;

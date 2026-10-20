@@ -38,6 +38,8 @@ tunnel (e.g. `cloudflared`) during development.
    (the app verifies `X-Send21-Signature-V2` and refuses deliveries older than 5 minutes);
    put the key and the webhook secret in `config.json`, plus your receiving addresses per
    currency in `send21.options` (tip: save them as "My own, I receive here" in the address book).
+   New send21 accounts only accept approved receiving addresses: approve each one in send21
+   (passkey or authenticator code), or the log shows 422 `address_not_approved` and no pay link is made.
 3. **Install on the store**: open `{appUrl}/auth?shop=your-store.myshopify.com` and approve.
    The app stores the access token and subscribes to `orders/create`.
 4. **Manual payment method**: in the store admin open Settings, then Payments, then Manual

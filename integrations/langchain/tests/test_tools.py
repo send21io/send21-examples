@@ -26,3 +26,11 @@ def test_create_pay_link():
 def test_rejects_usdt_on_polygon():
     with pytest.raises(ValueError):
         Send21CreatePayLinkTool(make_client([]), [PayOption(currency="Usdt", network="Polygon", address="x")])
+
+
+@pytest.mark.parametrize("status,code,text", [(422, "address_not_approved", "not approved"), (403, "owner_not_confirmed", "taken over")])
+def test_explains_approval_errors(status, code, text):
+    client = Send21Client("s21_test", http=httpx.Client(transport=httpx.MockTransport(lambda req: httpx.Response(status, json={"error": code}))))
+    tool = Send21CreatePayLinkTool(client, [PayOption(currency="Usdc", network="Solana", address="OWN")])
+    with pytest.raises(RuntimeError, match=text):
+        tool.invoke({"fiat_amount": 25, "fiat_currency": "eur"})

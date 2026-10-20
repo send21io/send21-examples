@@ -27,6 +27,15 @@ const SUPPORTED: Record<string, string[]> = {
   Eth: ["Ethereum", "Base", "Arbitrum"],
 };
 
+// send21 MCP 1.5.0: new accounts only use receiving addresses the owner approved,
+// and an agent-created account creates nothing until the owner takes it over.
+// https://send21.io/docs/mcp
+export function explainSend21Error(text: string): string | null {
+  if (text.includes("address_not_approved")) return "422 address_not_approved: this receiving address is not approved in your send21 account, so nothing was created. Approve it in send21 (signed in, with a passkey or authenticator code), or propose it with propose_receiving_address and have the owner approve it, then retry.";
+  if (text.includes("owner_not_confirmed")) return "403 owner_not_confirmed: the owner has not taken over this agent-created send21 account yet, so nothing can be created. The owner opens the emailed link and sets up a passkey or password first.";
+  return null;
+}
+
 export function checkOption(o: PayOption): string | null {
   const nets = SUPPORTED[o.currency];
   if (!nets) return `Unsupported currency ${o.currency}`;
@@ -54,7 +63,7 @@ export function send21Tools(opts: Send21Options = {}) {
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json", ...(init.headers ?? {}) },
     });
     const text = await res.text();
-    if (!res.ok) throw new Error(`send21 ${res.status}: ${text.slice(0, 500)}`);
+    if (!res.ok) throw new Error(explainSend21Error(text) ?? `send21 ${res.status}: ${text.slice(0, 500)}`);
     return JSON.parse(text);
   }
 
