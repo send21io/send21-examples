@@ -34,6 +34,15 @@ Copy-paste setups for common tools:
 | [examples/webhook-receiver](examples/webhook-receiver) | A small Node.js server with no dependencies that verifies the `X-Send21-Signature-V2` HMAC (timestamp + delivery id + raw body, 5-minute window; legacy `X-Send21-Signature` only as fallback), ignores repeated deliveries by `X-Send21-Delivery` and handles `draft.confirmed`, `draft.amount_mismatch` and the review events `draft.mismatch_accepted`, `draft.mismatch_rejected`, `draft.mismatch_reminder` and `draft.mismatch_unresolved`. Comes with tests that use the documented example payload. |
 | [examples/webhook-receiver-sqlite](examples/webhook-receiver-sqlite) | The same receiver with a durable delivery-id store in SQLite (`node:sqlite`, no server, no dependency): the `X-Send21-Delivery` id and the order update are committed in one transaction before the 2xx answer, so a restart, a lost ack or a crash before commit never applies an update twice or loses it. Tests kill and restart the process to show it. |
 
+## Integrations
+
+For agents built in code rather than connected over MCP, send21 also comes as framework packages:
+
+| Folder | Install | Package |
+|---|---|---|
+| [integrations/langchain](integrations/langchain) | `pip install langchain-send21` | [PyPI](https://pypi.org/project/langchain-send21/) |
+| [integrations/vercel-ai-sdk](integrations/vercel-ai-sdk) | `npm install ai-sdk-tool-send21 ai zod` | [npm](https://www.npmjs.com/package/ai-sdk-tool-send21) |
+
 ## Apps
 
 | Folder | What it is |
