@@ -42,6 +42,7 @@ For agents built in code rather than connected over MCP, send21 also comes as fr
 |---|---|---|
 | [integrations/langchain](integrations/langchain) | `pip install langchain-send21` | [PyPI](https://pypi.org/project/langchain-send21/) |
 | [integrations/vercel-ai-sdk](integrations/vercel-ai-sdk) | `npm install ai-sdk-tool-send21 ai zod` | [npm](https://www.npmjs.com/package/ai-sdk-tool-send21) |
+| [send21io/send21-haystack](https://github.com/send21io/send21-haystack) | `pip install send21-haystack` | [PyPI](https://pypi.org/project/send21-haystack/) |
 
 ## Apps
 
