@@ -1,6 +1,6 @@
 {
   "name": "ai-sdk-tool-send21",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Vercel AI SDK tools for send21, crypto pay links and API for people and AI agents. Prepare a pay link and check its status; the payer signs in their own wallet.",
   "type": "module",
   "main": "dist/index.js",
