@@ -469,7 +469,7 @@
     },
     {
       "parameters": {
-        "content": "## Wait for payment: the signed webhook\nsend21 POSTs `draft.confirmed` when the payment reaches its confirmations. This branch:\n- verifies `X-Send21-Signature-V2` over the raw body and refuses deliveries **older than 5 minutes** (401)\n- **dedupes by `X-Send21-Delivery`**: retries reuse the id; send21 does not dedupe for you\n- checks orderId, amount and currency against the invoice before it marks it **paid**\n- `draft.amount_mismatch` is never a payment: you accept or decline it yourself in send21\n\nThe secret lives in a *Crypto* credential named `send21 webhook secret` (field *Hmac Secret*). No environment variables needed.",
+        "content": "## Wait for payment: the signed webhook\nsend21 POSTs `draft.confirmed` when the payment reaches its confirmations. This branch:\n- verifies `X-Send21-Signature-V2` over the raw body and refuses deliveries **older than 5 minutes** (401)\n- **dedupes by `X-Send21-Delivery`**: retries reuse the id, so the same delivery can arrive more than once\n- checks orderId, amount and currency against the invoice before it marks it **paid**\n- `draft.amount_mismatch` is never a payment: you accept or decline it yourself in send21\n\nThe secret lives in a *Crypto* credential named `send21 webhook secret` (field *Hmac Secret*). No environment variables needed.",
         "height": 330,
         "width": 620,
         "color": 4
