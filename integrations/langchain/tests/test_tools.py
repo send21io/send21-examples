@@ -34,3 +34,24 @@ def test_explains_approval_errors(status, code, text):
     tool = Send21CreatePayLinkTool(client, [PayOption(currency="Usdc", network="Solana", address="OWN")])
     with pytest.raises(RuntimeError, match=text):
         tool.invoke({"fiat_amount": 25, "fiat_currency": "eur"})
+
+
+@pytest.mark.parametrize("network", ["Mainnet", "Solana", "Ethereum"])
+def test_accepts_btc_and_wrapped_btc(network):
+    seen = []
+    tool = Send21CreatePayLinkTool(make_client(seen), [PayOption(currency="Btc", network=network, address="OWN")])
+    tool.invoke({"fiat_amount": 25, "fiat_currency": "eur"})
+    opt = json.loads(seen[0].content)["options"][0]
+    assert opt["currency"] == "Btc" and opt["network"] == network
+
+
+@pytest.mark.parametrize("network", ["Base", "Arbitrum", "Polygon"])
+def test_rejects_btc_elsewhere(network):
+    with pytest.raises(ValueError):
+        Send21CreatePayLinkTool(make_client([]), [PayOption(currency="Btc", network=network, address="x")])
+
+
+def test_lightning_only_on_mainnet():
+    Send21CreatePayLinkTool(make_client([]), [PayOption(currency="Btc", network="Mainnet", address="a@b.com", method="Lightning")])
+    with pytest.raises(ValueError):
+        Send21CreatePayLinkTool(make_client([]), [PayOption(currency="Btc", network="Solana", address="x", method="Lightning")])

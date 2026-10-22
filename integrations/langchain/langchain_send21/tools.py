@@ -9,9 +9,10 @@ import httpx
 from langchain_core.tools import BaseTool, BaseToolkit
 from pydantic import BaseModel, Field, PrivateAttr
 
-# Supported asset/network pairs. USDT only on Solana and Ethereum, no ETH on Polygon.
+# Supported asset/network pairs (https://send21.io/docs/currencies). USDT only on Solana and
+# Ethereum, no ETH on Polygon. Btc on Solana is wrapped BTC (Portal), Btc on Ethereum is WBTC.
 SUPPORTED = {
-    "Btc": {"Mainnet"},
+    "Btc": {"Mainnet", "Solana", "Ethereum"},
     "Usdc": {"Solana", "Ethereum", "Base", "Arbitrum", "Polygon"},
     "Usdt": {"Solana", "Ethereum"},
     "Eurc": {"Solana", "Ethereum", "Base"},
@@ -41,8 +42,8 @@ class PayOption(BaseModel):
     def check(self) -> None:
         if self.network not in SUPPORTED[self.currency]:
             raise ValueError(f"{self.currency} is not supported on {self.network}")
-        if self.method == "Lightning" and self.currency != "Btc":
-            raise ValueError("Lightning is only for Btc")
+        if self.method == "Lightning" and (self.currency, self.network) != ("Btc", "Mainnet"):
+            raise ValueError("Lightning is only for Btc on Mainnet")
 
 
 class Send21Client:

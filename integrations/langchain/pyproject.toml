@@ -1,13 +1,13 @@
 [project]
 name = "langchain-send21"
-version = "0.1.3"
+version = "0.1.4"
 description = "send21 tools for LangChain. Crypto pay links and API for people and AI agents. The payer signs in their own wallet."
 readme = "README.md"
 license = { text = "MIT" }
 authors = [{ name = "send21", email = "info@send21.io" }]
 requires-python = ">=3.10"
 dependencies = ["langchain-core>=0.3,<2", "httpx>=0.27"]
-keywords = ["langchain", "tools", "payments", "non-custodial", "send21", "usdc", "bitcoin", "lightning"]
+keywords = ["langchain", "tools", "payments", "non-custodial", "send21", "usdc", "bitcoin", "lightning", "mcp"]
 
 [project.urls]
 Homepage = "https://send21.io"

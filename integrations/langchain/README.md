@@ -35,7 +35,7 @@ agent.invoke({"messages": [{"role": "user", "content": "Create a pay link for 40
 - `send21_create_pay_link(fiat_amount, fiat_currency, order_id?, memo?, decline_note?)` returns `pay_link`, `payment_request_id`, `status`, `expires_at`. Receiving addresses come from your code, never from the model. Each call uses a fresh idempotency key, and with an `order_id` a retry returns the open link instead of creating a second one.
 - `send21_get_pay_link_status(payment_request_id)` returns `Open`, `Completed`, `Cancelled` or `Expired` plus any "what changed" notes.
 
-Supported pairs: BTC on Bitcoin and Lightning; USDC on Solana, Ethereum, Base, Arbitrum, Polygon; USDT on Solana and Ethereum; EURC on Solana, Ethereum, Base; SOL; ETH on Ethereum, Base, Arbitrum. Others are refused before any API call.
+Supported pairs: BTC on Bitcoin and Lightning; wrapped BTC on Solana and WBTC on Ethereum (currency `Btc`); USDC on Solana, Ethereum, Base, Arbitrum, Polygon; USDT on Solana and Ethereum; EURC on Solana, Ethereum, Base; SOL; ETH on Ethereum, Base, Arbitrum. Others are refused before any API call.
 
 New send21 accounts only accept receiving addresses the owner approved: approve each `receive_options` address in send21 first (sign in, passkey or authenticator code). A 422 `address_not_approved` or 403 `owner_not_confirmed` comes back as a plain explanation the agent can relay, and nothing is created.
 
