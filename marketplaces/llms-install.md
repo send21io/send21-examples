@@ -3,7 +3,7 @@
 send21 is a remote MCP server. Nothing needs to be cloned or built.
 
 1. Endpoint: `https://send21.io/mcp` (Streamable HTTP).
-2. `tools/list` and `get_fee_schedule` work without a key. For everything else, ask the user for a send21 API key created at https://send21.io/api-keys. Suggest the smallest scopes: `drafts:read` and `drafts:write`. No send21 key can move funds.
+2. `tools/list` and `get_fee_schedule` work without a key. For everything else, use an API key or OAuth sign-in. If the client supports MCP sign-in, connect to `https://send21.io/mcp/oauth` with no headers and let the user sign in and approve in the browser. Otherwise ask the user for a send21 API key created at https://send21.io/api-keys. Suggest the smallest scopes: `drafts:read` and `drafts:write`. No send21 key can move funds.
 3. Add to the MCP settings:
 
 ```json

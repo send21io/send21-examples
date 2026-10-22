@@ -73,7 +73,7 @@ You need Node.js 20.12 or newer. The P2P apps ([apps/send21-pair](apps/send21-pa
 cp .env.example .env
 ```
 
-Calls that create something need an API key. The account owner creates scoped keys at https://send21.io/api-keys. `tools/list` and `get_fee_schedule` on the MCP server work without a key.
+Calls that create something need an API key or OAuth sign-in. The account owner creates scoped keys at https://send21.io/api-keys. Clients that support MCP sign-in (OAuth), such as Claude, Claude Code, Cursor, VS Code and Muse Code, can use `https://send21.io/mcp/oauth` with no headers instead: you sign in to send21 in the browser and approve the app, no key to copy. Connected apps only ever use receiving addresses the owner approved. Details: https://send21.io/docs/mcp ("Sign in instead of a key"). `tools/list` and `get_fee_schedule` on the MCP server work without a key.
 
 **Approve your receiving addresses first.** New send21 accounts (created on or after 20 Oct 2026) only accept receiving addresses the owner approved, Lightning addresses included. Add them in the send21 app, or let an agent propose them with MCP `propose_receiving_address`, then sign in and approve each with a passkey or authenticator code. No API key can approve an address. Older accounts can opt in under Settings.
 

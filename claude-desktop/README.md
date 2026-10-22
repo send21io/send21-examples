@@ -6,6 +6,8 @@ Claude Desktop starts local MCP servers from `claude_desktop_config.json`, so th
 
 ## Quickstart
 
+Auth: API key or OAuth sign-in. To sign in instead of using a key, add `https://send21.io/mcp/oauth` as a custom connector in Claude (no key, no bridge); Claude opens send21 in the browser, you sign in and approve. The steps below use an API key with a local bridge.
+
 **1. Create an API key.** At https://send21.io/api-keys create a key with the `drafts:write` scope (add `drafts:read` to let Claude look the link up later). No key can move funds.
 
 **2. Add the server.** Open Claude Desktop > Settings > Developer > Edit Config and merge [`claude_desktop_config.json`](claude_desktop_config.json) into the file:
