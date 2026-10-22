@@ -1,8 +1,10 @@
 # webhook-receiver-sqlite
 
+[send21](https://send21.io/): Crypto pay links and API for people and AI agents.
+
 The [webhook-receiver](../webhook-receiver) with a durable delivery-id store. The `X-Send21-Delivery` id and the bookkeeping update (here: mark the order paid with its `txId` on `draft.confirmed`) are committed together in one SQLite transaction, and the receiver answers 2xx only after that commit. It uses `node:sqlite`, which ships with Node.js 22.13 and later, so there is no database server and no dependency to install. Node 22 prints an `ExperimentalWarning` for `node:sqlite`; Node 24 does not.
 
-Why this variant exists: the in-memory store in `webhook-receiver` remembers delivery ids only while the process runs. After a restart, a delivery that is still inside the 5-minute V2 window is treated as new again. send21 does not dedupe deliveries. Retries reuse the same `X-Send21-Delivery` id, and the receiver ignores deliveries it already handled, so that check has to survive restarts. (Separately, one pay link is one payment.)
+Why this variant exists: the in-memory store in `webhook-receiver` remembers delivery ids only while the process runs. After a restart, a delivery that is still inside the 5-minute V2 window is treated as new again. send21 retries failed deliveries, so the same delivery can arrive more than once. Retries reuse the same `X-Send21-Delivery` id, and the receiver ignores deliveries it already handled, so that check has to survive restarts. (Separately, one pay link is one payment.)
 
 ```sh
 npm test                                   # restart, lost ack and crash tests, no network needed

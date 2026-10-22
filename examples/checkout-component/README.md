@@ -1,5 +1,7 @@
 # checkout-component: a send21 checkout for any webshop
 
+[send21](https://send21.io/): Crypto pay links and API for people and AI agents.
+
 A drop-in `<send21-checkout>` web component and a minimal Node.js shop backend that together add "Pay with crypto" to any webshop, whatever the frontend framework.
 
 send21 is non-custodial. It prepares payment drafts and pay links; the payer opens the link, picks an asset, scans one QR code and signs in their own wallet. The money goes straight from the payer's wallet to the shop's own address. send21 never holds keys or funds, never signs and never broadcasts.

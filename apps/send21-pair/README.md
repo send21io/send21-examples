@@ -1,5 +1,7 @@
 # send21 pair (testnet prototype)
 
+[send21](https://send21.io/): Crypto pay links and API for people and AI agents.
+
 > **TESTNET ONLY.** Test money, test networks, nothing here has value. A prototype, not a product.
 
 Two people connect by scanning each other's QR code or opening a link. After that they can ask each other for money and pay each other back, anywhere in the world, in their own currency. Each payment is a send21 draft to the **receiver's own wallet address**. The payer taps the notification, taps **Open wallet**, checks and signs in their own wallet. send21 never holds keys or funds, never signs and never broadcasts, and neither does this app.

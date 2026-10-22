@@ -1,5 +1,7 @@
 # Agent templates
 
+[send21](https://send21.io/): Crypto pay links and API for people and AI agents.
+
 Ready-made agents that do one real job with send21, for the tools builders already use. Each folder has the importable file, a README with a 3-step setup, and a way to test it before a real payment.
 
 | Template | Tool | Job |
