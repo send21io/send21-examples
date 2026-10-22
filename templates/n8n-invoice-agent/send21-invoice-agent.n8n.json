@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## send21 invoice agent\n\nTakes a client, an amount and a currency, creates a **send21 pay link** (crypto, priced in your currency), emails it to the client, then waits for the signed **draft.confirmed** webhook and marks the invoice paid.\n\n**Setup (3 steps)**\n1. Credentials: *Bearer Auth* named `send21 API key` with your `s21_...` key (scopes `drafts:write`, `drafts:read`, `webhooks:manage`), and an *SMTP* account.\n2. Open **Settings**: your own receiving addresses (approved in the send21 app), your email.\n3. Activate, run **Register webhook (run once)**, put the returned secret in `SEND21_WEBHOOK_SECRET`.\n\nThe payer signs in their own wallet. send21 never holds keys or funds.",
+        "content": "## send21 invoice agent\n\nTakes a client, an amount and a currency, creates a **send21 pay link** (crypto, priced in your currency), emails it to the client, then waits for the signed **draft.confirmed** webhook and marks the invoice paid.\n\n**Setup (3 steps)**\n1. Credentials: *Bearer Auth* named `send21 API key` with your `s21_...` key (scopes `drafts:write`, `drafts:read`, `webhooks:manage`), and an *SMTP* account.\n2. Open **Settings**: your own receiving addresses (approved in the send21 app), your email.\n3. Activate, run **Register webhook (run once)**, save the returned secret in a *Crypto* credential `send21 webhook secret` (Hmac Secret).\n\nThe payer signs in their own wallet. send21 never holds keys or funds.",
         "height": 380,
         "width": 620
       },
@@ -469,7 +469,7 @@
     },
     {
       "parameters": {
-        "content": "## Wait for payment: the signed webhook\nsend21 POSTs `draft.confirmed` when the payment reaches its confirmations. This branch:\n- verifies `X-Send21-Signature-V2` over the raw body and refuses deliveries **older than 5 minutes** (401)\n- **dedupes by `X-Send21-Delivery`**: retries reuse the id; send21 does not dedupe for you\n- checks orderId, amount and currency against the invoice before it marks it **paid**\n- `draft.amount_mismatch` is never a payment: you accept or decline it yourself in send21\n\nn8n env: `NODE_FUNCTION_ALLOW_BUILTIN=crypto`, `SEND21_WEBHOOK_SECRET`, and `N8N_BLOCK_ENV_ACCESS_IN_NODE=false`.",
+        "content": "## Wait for payment: the signed webhook\nsend21 POSTs `draft.confirmed` when the payment reaches its confirmations. This branch:\n- verifies `X-Send21-Signature-V2` over the raw body and refuses deliveries **older than 5 minutes** (401)\n- **dedupes by `X-Send21-Delivery`**: retries reuse the id; send21 does not dedupe for you\n- checks orderId, amount and currency against the invoice before it marks it **paid**\n- `draft.amount_mismatch` is never a payment: you accept or decline it yourself in send21\n\nThe secret lives in a *Crypto* credential named `send21 webhook secret` (field *Hmac Secret*). No environment variables needed.",
         "height": 330,
         "width": 620,
         "color": 4
@@ -504,14 +504,50 @@
     },
     {
       "parameters": {
-        "jsCode": "// Verifies X-Send21-Signature-V2 = t=<unix>,v1=<hex HMAC-SHA256 of \"<t>.<delivery id>.<raw body>\">\n// over the RAW body, refuses deliveries more than 300 s (5 minutes) old, and flags\n// delivery ids this workflow already handled (send21 retries reuse X-Send21-Delivery;\n// deduplicating is the receiver's job).\n// Needs NODE_FUNCTION_ALLOW_BUILTIN=crypto and SEND21_WEBHOOK_SECRET in the n8n environment.\nconst crypto = require('crypto');\nconst secret = $env.SEND21_WEBHOOK_SECRET;\nconst item = $input.first();\nconst h = item.json.headers || {};\nlet raw = null;\nif (item.binary && item.binary.data) {\n  try {\n    raw = await this.helpers.getBinaryDataBuffer(0, 'data');\n  } catch (e) {\n    raw = item.binary.data.data ? Buffer.from(item.binary.data.data, 'base64') : null;\n  }\n}\nconst sig = String(h['x-send21-signature-v2'] || '');\nconst deliveryId = String(h['x-send21-delivery'] || '');\nconst t = (/(?:^|,)t=(\\d+)/.exec(sig) || [])[1];\nconst v1 = (/(?:^|,)v1=([0-9a-f]{64})/.exec(sig) || [])[1];\nlet reason = '';\nif (!secret) reason = 'SEND21_WEBHOOK_SECRET is not set';\nelse if (!raw) reason = 'raw body missing (turn on the Raw Body option of the webhook node)';\nelse if (!t || !v1 || !deliveryId) reason = 'missing X-Send21-Signature-V2 or X-Send21-Delivery';\nelse if (Math.abs(Date.now() / 1000 - Number(t)) > 300) reason = 'delivery more than 5 minutes old';\nelse {\n  const expected = crypto.createHmac('sha256', secret).update(t + '.' + deliveryId + '.').update(raw).digest();\n  if (!crypto.timingSafeEqual(Buffer.from(v1, 'hex'), expected)) reason = 'signature does not match';\n}\nif (reason) return [{ json: { valid: false, reason } }];\n\nlet payload;\ntry { payload = JSON.parse(raw.toString('utf8')); } catch (e) { return [{ json: { valid: false, reason: 'body is not JSON' } }]; }\nconst store = $getWorkflowStaticData('global');\nconst seen = store.seenDeliveries || {};\nreturn [{ json: {\n  valid: true,\n  duplicate: Object.prototype.hasOwnProperty.call(seen, deliveryId),\n  deliveryId,\n  event: payload.event,\n  data: payload.data || {},\n} }];\n"
+        "jsCode": "// Step 1 of the X-Send21-Signature-V2 check: read the RAW body bytes and the headers,\n// refuse deliveries more than 300 s (5 minutes) old, and build \"<t>.<delivery id>.<raw body>\"\n// for the HMAC node. No environment variables and no built-in modules needed.\nconst item = $input.first();\nconst h = item.json.headers || {};\nlet raw = null;\nif (item.binary && item.binary.data) {\n  try {\n    raw = await this.helpers.getBinaryDataBuffer(0, 'data');\n  } catch (e) {\n    raw = item.binary.data.data ? Buffer.from(item.binary.data.data, 'base64') : null;\n  }\n}\nconst sig = String(h['x-send21-signature-v2'] || '');\nconst deliveryId = String(h['x-send21-delivery'] || '');\nconst t = (/(?:^|,)t=(\\d+)/.exec(sig) || [])[1] || '';\nconst v1 = (/(?:^|,)v1=([0-9a-f]{64})/.exec(sig) || [])[1] || '';\nlet reason = '';\nif (!raw) reason = 'raw body missing (turn on the Raw Body option of the webhook node)';\nelse if (!t || !v1 || !deliveryId) reason = 'missing X-Send21-Signature-V2 or X-Send21-Delivery';\nelse if (Math.abs(Date.now() / 1000 - Number(t)) > 300) reason = 'delivery more than 5 minutes old';\nconst rawText = raw ? raw.toString('utf8') : '';\nreturn [{ json: { reason, v1, deliveryId, rawText, signedPayload: t + '.' + deliveryId + '.' + rawText } }];\n"
+      },
+      "id": "1d6546e7-7d50-5d4a-998a-de9ef1bc5ff0",
+      "name": "Read raw body",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        200,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "action": "hmac",
+        "type": "SHA256",
+        "value": "={{ $json.signedPayload }}",
+        "dataPropertyName": "expectedSignature",
+        "encoding": "hex"
+      },
+      "id": "23411ed2-73ad-5326-8c7a-2dba6b5ea7f1",
+      "name": "HMAC-SHA256 (webhook secret)",
+      "type": "n8n-nodes-base.crypto",
+      "typeVersion": 2,
+      "position": [
+        400,
+        800
+      ],
+      "credentials": {
+        "crypto": {
+          "id": "",
+          "name": "send21 webhook secret"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Step 2: compare the HMAC from the \"HMAC-SHA256\" node (keyed with your send21 webhook\n// secret, stored as an n8n credential) with v1 in constant time, then flag delivery ids\n// this workflow already handled. send21 retries reuse X-Send21-Delivery; deduplicating\n// is the receiver's job.\nconst j = $input.first().json;\nconst expected = String(j.expectedSignature || '');\nconst given = String(j.v1 || '');\nlet same = expected.length === 64 && given.length === 64;\nlet diff = 0;\nfor (let i = 0; i < 64; i++) diff |= (expected.charCodeAt(i) || 0) ^ (given.charCodeAt(i) || 0);\nsame = same && diff === 0;\nconst reason = j.reason || (same ? '' : 'signature does not match');\nif (reason) return [{ json: { valid: false, reason } }];\n\nlet payload;\ntry { payload = JSON.parse(j.rawText); } catch (e) { return [{ json: { valid: false, reason: 'body is not JSON' } }]; }\nconst seen = $getWorkflowStaticData('global').seenDeliveries || {};\nreturn [{ json: {\n  valid: true,\n  duplicate: Object.prototype.hasOwnProperty.call(seen, j.deliveryId),\n  deliveryId: j.deliveryId,\n  event: payload.event,\n  data: payload.data || {},\n} }];\n"
       },
       "id": "65149d28-d2de-5639-affb-b14d670b4753",
       "name": "Verify signature (V2)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        220,
+        600,
         800
       ]
     },
@@ -545,7 +581,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        440,
+        800,
         800
       ]
     },
@@ -562,7 +598,7 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        660,
+        1020,
         960
       ]
     },
@@ -596,7 +632,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        660,
+        1020,
         760
       ]
     },
@@ -613,7 +649,7 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        880,
+        1240,
         640
       ]
     },
@@ -626,7 +662,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        880,
+        1240,
         860
       ]
     },
@@ -643,7 +679,7 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        1100,
+        1460,
         860
       ]
     },
@@ -756,7 +792,7 @@
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.2,
       "position": [
-        1320,
+        1680,
         860
       ]
     },
@@ -776,7 +812,7 @@
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
       "position": [
-        1580,
+        1940,
         700
       ],
       "credentials": {
@@ -803,7 +839,7 @@
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
       "position": [
-        1580,
+        1940,
         900
       ],
       "credentials": {
@@ -853,7 +889,7 @@
     },
     {
       "parameters": {
-        "content": "### Register the webhook once\nReplace `https://YOUR-N8N-HOST` in **POST /webhooks** with your public n8n URL (HTTPS, public address), run it once, and copy `secret` from the output into the `SEND21_WEBHOOK_SECRET` environment variable. It is shown only once. Then restart n8n.",
+        "content": "### Register the webhook once\nReplace `https://YOUR-N8N-HOST` in **POST /webhooks** with your public n8n URL (HTTPS, public address), run it once, and copy `secret` from the output into a *Crypto* credential named `send21 webhook secret` (field *Hmac Secret*), then select it on **HMAC-SHA256 (webhook secret)**. The secret is shown only once.",
         "height": 220,
         "width": 520,
         "color": 6
@@ -1041,6 +1077,28 @@
       ]
     },
     "send21 webhook": {
+      "main": [
+        [
+          {
+            "node": "Read raw body",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read raw body": {
+      "main": [
+        [
+          {
+            "node": "HMAC-SHA256 (webhook secret)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HMAC-SHA256 (webhook secret)": {
       "main": [
         [
           {
