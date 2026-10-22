@@ -1,0 +1,1180 @@
+{
+  "name": "send21 invoice agent: pay link by email, marked paid on the signed webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## send21 invoice agent\n\nTakes a client, an amount and a currency, creates a **send21 pay link** (crypto, priced in your currency), emails it to the client, then waits for the signed **draft.confirmed** webhook and marks the invoice paid.\n\n**Setup (3 steps)**\n1. Credentials: *Bearer Auth* named `send21 API key` with your `s21_...` key (scopes `drafts:write`, `drafts:read`, `webhooks:manage`), and an *SMTP* account.\n2. Open **Settings**: your own receiving addresses (approved in the send21 app), your email.\n3. Activate, run **Register webhook (run once)**, put the returned secret in `SEND21_WEBHOOK_SECRET`.\n\nThe payer signs in their own wallet. send21 never holds keys or funds.",
+        "height": 380,
+        "width": 620
+      },
+      "id": "e704c715-15c9-50b5-b53f-a67e4e7205eb",
+      "name": "Note: start",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -120,
+        -420
+      ]
+    },
+    {
+      "parameters": {
+        "formTitle": "New invoice",
+        "formDescription": "Creates a send21 crypto pay link priced in your currency and emails it to the client.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Client name",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Client email",
+              "fieldType": "email",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Amount",
+              "fieldType": "number",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Currency",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "EUR"
+                  },
+                  {
+                    "option": "USD"
+                  },
+                  {
+                    "option": "GBP"
+                  },
+                  {
+                    "option": "SEK"
+                  },
+                  {
+                    "option": "CHF"
+                  }
+                ]
+              },
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "What is it for",
+              "requiredField": false
+            },
+            {
+              "fieldLabel": "Invoice number (optional)",
+              "requiredField": false
+            }
+          ]
+        },
+        "responseMode": "lastNode",
+        "options": {
+          "path": "send21-invoice"
+        }
+      },
+      "id": "cee40e7a-d72f-509e-abc8-9ecdcdce5592",
+      "name": "New invoice (form)",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "153ecc18-a37c-5f75-9c5c-3b59e467c98a"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "send21-invoice-api",
+        "responseMode": "lastNode",
+        "responseData": "firstEntryJson",
+        "options": {}
+      },
+      "id": "524b3849-ff0c-5549-886d-5ac480dc1e7e",
+      "name": "New invoice (API)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        200
+      ],
+      "webhookId": "97e1e6e1-75f2-53bf-a621-90feb78d0dd0"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Takes the form fields or the JSON body of the API webhook and checks them.\n// The receiving addresses are NOT taken from here: they come from \"Settings\",\n// which only the workflow owner edits.\nconst src = $input.first().json;\nconst fromApi = src && typeof src === 'object' && 'headers' in src && 'body' in src;\nconst b = fromApi ? (src.body || {}) : src;\nconst pick = (...keys) => {\n  for (const k of keys) {\n    const v = b[k];\n    if (v !== undefined && v !== null && String(v).trim() !== '') return String(v).trim();\n  }\n  return '';\n};\nconst clientName = pick('clientName', 'Client name');\nconst clientEmail = pick('clientEmail', 'Client email').toLowerCase();\nconst amount = Number(pick('amount', 'Amount').replace(',', '.'));\nconst currency = pick('currency', 'Currency').toUpperCase();\nconst description = pick('description', 'What is it for');\nlet invoiceId = pick('invoiceId', 'Invoice number (optional)');\n\nconst errors = [];\nif (!clientName) errors.push('clientName is required');\nif (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(clientEmail)) errors.push('clientEmail must be an email address');\nif (!(amount > 0)) errors.push('amount must be a number above 0');\nif (!/^[A-Z]{3}$/.test(currency)) errors.push('currency must be a 3-letter code such as EUR, USD or SEK');\nif (invoiceId && !/^[A-Za-z0-9._-]{1,64}$/.test(invoiceId)) errors.push('invoiceId may only use letters, digits, dot, dash and underscore (max 64)');\nif (!invoiceId) {\n  const day = new Date().toISOString().slice(0, 10).replace(/-/g, '');\n  invoiceId = 'INV-' + day + '-' + Math.random().toString(36).slice(2, 8).toUpperCase();\n}\n\nreturn [{\n  json: {\n    ok: errors.length === 0,\n    viaForm: !fromApi,\n    statusCode: errors.length ? 400 : 200,\n    title: errors.length ? 'Invoice not created' : '',\n    message: errors.join('; '),\n    clientName,\n    clientEmail,\n    amount: Math.round(amount * 100) / 100,\n    currency,\n    description,\n    invoiceId,\n  },\n}];\n"
+      },
+      "id": "88091923-c0a1-5bf9-9912-d2a89a9243f7",
+      "name": "Normalize invoice",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "a856d5cd-02d9-5a50-b290-1c52178f283a",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "f64c635a-c4bf-5b3f-a36b-0f7874ec9a4e",
+      "name": "Input valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        440,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "494db43f-1aa0-5f21-8d6e-3d1ce755707a",
+              "name": "solanaAddress",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "ae3a616d-d831-5bf6-bce3-06d491a501c2",
+              "name": "baseAddress",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "1e381c30-4042-5e73-b4fd-b2b13d259cb6",
+              "name": "lightningAddress",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "afa73182-8ead-593f-b105-9035fdfd470e",
+              "name": "ownerEmail",
+              "value": "you@example.com",
+              "type": "string"
+            },
+            {
+              "id": "f12b2d30-1a91-5c06-bad5-6def63f1f4f5",
+              "name": "senderEmail",
+              "value": "invoices@example.com",
+              "type": "string"
+            },
+            {
+              "id": "1a15366d-5d42-5e50-9fb0-fadd731b86d1",
+              "name": "expiryHours",
+              "value": 72,
+              "type": "number"
+            },
+            {
+              "id": "0539cb25-204f-57e5-90ad-72bcbfe2a0a4",
+              "name": "declineNote",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "882db9b6-f766-547f-a914-a54eb5bc8d85",
+      "name": "Settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        660,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "### Settings: your own addresses\nFill in at least one. They must be **your** addresses, approved by you in the send21 app (passkey or authenticator code). An unapproved address returns `422 address_not_approved` and nothing is created. The client can never change them.\n\n- `solanaAddress`: USDC + USDT on Solana\n- `baseAddress`: USDC + EURC on Base\n- `lightningAddress`: BTC over Lightning (name@wallet.com)",
+        "height": 300,
+        "width": 360,
+        "color": 5
+      },
+      "id": "355a4570-e75b-5839-ad9f-1ab8a126a3c6",
+      "name": "Note: settings",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        600,
+        -330
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Builds the POST /api/v1/payment-requests body from the invoice and YOUR addresses in \"Settings\".\n// USDT is only offered on Solana (send21 supports USDT on Solana and Ethereum only).\nconst j = $input.first().json;\nconst options = [];\nif (j.solanaAddress) {\n  options.push({ currency: 'Usdc', network: 'Solana', address: j.solanaAddress });\n  options.push({ currency: 'Usdt', network: 'Solana', address: j.solanaAddress });\n}\nif (j.baseAddress) {\n  options.push({ currency: 'Usdc', network: 'Base', address: j.baseAddress });\n  options.push({ currency: 'Eurc', network: 'Base', address: j.baseAddress });\n}\nif (j.lightningAddress) {\n  options.push({ currency: 'Btc', network: 'Mainnet', address: j.lightningAddress, method: 'Lightning' });\n}\nif (!options.length) {\n  return [{ json: { ...j, ok: false, statusCode: 500, title: 'Invoice not created',\n    message: 'Add at least one of your own receiving addresses in the \"Settings\" node.' } }];\n}\nconst memo = ('Invoice ' + j.invoiceId + (j.description ? ': ' + j.description : '')).slice(0, 500);\nconst request = {\n  fiatCurrency: j.currency,\n  fiatAmount: j.amount,\n  orderId: j.invoiceId,\n  memo,\n  expiryHours: Number(j.expiryHours) || 72,\n  reuseOpenForOrder: true,\n  options,\n};\nif (j.declineNote) request.declineNote = String(j.declineNote).slice(0, 200);\n// Same invoice + same request = same pay link on a retry. The same key with another\n// amount, currency or address is refused with 422 and creates nothing.\nreturn [{ json: { ...j, ok: true, request, idempotencyKey: 'invoice-' + j.invoiceId } }];\n"
+      },
+      "id": "9cb50c1d-c895-5ba1-9cfa-65394dbd0925",
+      "name": "Build payment request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "243b9b86-709d-5b6e-a863-e87520739e6d",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "37af46a2-63bf-5382-ac42-7b60f31fb0e3",
+      "name": "Has addresses?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1100,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://send21.io/api/v1/payment-requests",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Idempotency-Key",
+              "value": "={{ $json.idempotencyKey }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.request) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "11f5abc6-ed2c-5bbd-8328-891b99390ad9",
+      "name": "Create pay link (send21)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1320,
+        -100
+      ],
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "",
+          "name": "send21 API key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Reads the send21 answer. On success it stores the invoice in this workflow's\n// static data (kept between production runs), so the webhook branch can match it.\nconst res = $input.first().json;\nconst inv = $('Build payment request').first().json;\nconst body = res.body || {};\nif (res.statusCode >= 200 && res.statusCode < 300 && body.payPath) {\n  const payLink = 'https://send21.io' + body.payPath;\n  const store = $getWorkflowStaticData('global');\n  store.invoices = store.invoices || {};\n  // the webhook branch emails you from these\n  store.settings = { ownerEmail: inv.ownerEmail, senderEmail: inv.senderEmail };\n  store.invoices[inv.invoiceId] = {\n    invoiceId: inv.invoiceId,\n    paymentRequestId: body.id,\n    clientName: inv.clientName,\n    clientEmail: inv.clientEmail,\n    amount: inv.amount,\n    currency: inv.currency,\n    description: inv.description,\n    payLink,\n    expiresAt: body.expiresAt,\n    status: (store.invoices[inv.invoiceId] || {}).status === 'paid' ? 'paid' : 'sent',\n    createdAt: new Date().toISOString(),\n  };\n  return [{ json: { ...inv, ok: true, statusCode: 200, title: 'Invoice ' + inv.invoiceId + ' sent',\n    payLink, paymentRequestId: body.id, expiresAt: body.expiresAt } }];\n}\nconst text = JSON.stringify(body);\nlet message = 'send21 answered ' + res.statusCode + ': ' + (body.detail || body.title || text).toString().slice(0, 300);\nif (text.includes('address_not_approved')) {\n  message = 'One of the receiving addresses in \"Settings\" is not approved yet. Approve it yourself in the send21 app ' +\n    '(address book, with a passkey or authenticator code), then try again. No API key can approve an address.';\n} else if (res.statusCode === 402) {\n  message = 'send21 asks you to settle accrued fees first (POST /api/v1/fees/accrued/settle, or in the app).';\n} else if (res.statusCode === 401 || res.statusCode === 403) {\n  message = 'The send21 API key is missing, wrong or lacks the drafts:write scope (or the account owner has not confirmed it yet).';\n}\nreturn [{ json: { ...inv, ok: false, statusCode: res.statusCode >= 400 && res.statusCode < 500 ? res.statusCode : 502,\n  title: 'Invoice not created', message } }];\n"
+      },
+      "id": "0b35aa6a-f917-5d7d-a69a-6711e0992b68",
+      "name": "Record invoice",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "08b9cc60-1059-55f1-8ef8-4a2d5f69186e",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "4905ab78-c08b-5196-95df-e73672236833",
+      "name": "Pay link created?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1760,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $json.senderEmail }}",
+        "toEmail": "={{ $json.clientEmail }}",
+        "subject": "=Invoice {{ $json.invoiceId }}: {{ $json.amount }} {{ $json.currency }}",
+        "emailFormat": "text",
+        "text": "=Hi {{ $json.clientName }},\n\nhere is invoice {{ $json.invoiceId }} for {{ $json.amount }} {{ $json.currency }}{{ $json.description ? ' (' + $json.description + ')' : '' }}.\n\nPay here: {{ $json.payLink }}\n\nPick a currency, scan the QR code and pay from your own wallet. The exchange rate locks for 15 minutes once you pick. The link expires {{ $json.expiresAt }}.\n\nThank you!",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "6fbcabd0-2707-5464-ace5-de775103bcfb",
+      "name": "Email pay link to client",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1980,
+        -200
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "",
+          "name": "SMTP account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Reports whether the email went out. The pay link is returned either way.\nconst inv = $('Record invoice').first().json;\nconst mail = $input.first().json || {};\nconst emailed = !mail.error;\nconst message = 'Pay link for ' + inv.amount + ' ' + inv.currency + ': ' + inv.payLink +\n  (emailed ? ' (emailed to ' + inv.clientEmail + ')' : ' (email not sent: ' + String(mail.error && (mail.error.message || mail.error)).slice(0, 160) + ')');\nreturn [{ json: { ...inv, emailed, message } }];\n"
+      },
+      "id": "cbd76984-f35e-5b9f-85eb-14766e276542",
+      "name": "Reply after email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        -200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "e95a3c3c-5c91-5b82-b3ef-c47dfbd892f6",
+              "leftValue": "={{ $json.viaForm }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "67af2f97-762b-508c-a075-5c46a8e9910d",
+      "name": "From the form?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2420,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "completion",
+        "completionTitle": "={{ $json.title }}",
+        "completionMessage": "={{ $json.message }}",
+        "options": {}
+      },
+      "id": "692a6f1c-db8b-5c93-8cfc-b5a867d7ff0d",
+      "name": "Show result",
+      "type": "n8n-nodes-base.form",
+      "typeVersion": 1,
+      "position": [
+        2640,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={{ JSON.stringify({ ok: $json.ok, invoiceId: $json.invoiceId, payLink: $json.payLink || null, paymentRequestId: $json.paymentRequestId || null, expiresAt: $json.expiresAt || null, emailed: $json.emailed || false, message: $json.message }) }}",
+        "options": {}
+      },
+      "id": "4b2a34bd-db32-563c-8304-6cb2e4a646d0",
+      "name": "Return result",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2640,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Wait for payment: the signed webhook\nsend21 POSTs `draft.confirmed` when the payment reaches its confirmations. This branch:\n- verifies `X-Send21-Signature-V2` over the raw body and refuses deliveries **older than 5 minutes** (401)\n- **dedupes by `X-Send21-Delivery`**: retries reuse the id; send21 does not dedupe for you\n- checks orderId, amount and currency against the invoice before it marks it **paid**\n- `draft.amount_mismatch` is never a payment: you accept or decline it yourself in send21\n\nn8n env: `NODE_FUNCTION_ALLOW_BUILTIN=crypto`, `SEND21_WEBHOOK_SECRET`, and `N8N_BLOCK_ENV_ACCESS_IN_NODE=false`.",
+        "height": 330,
+        "width": 620,
+        "color": 4
+      },
+      "id": "7ac63dc5-b28d-5798-b285-32f403030054",
+      "name": "Note: webhook",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -120,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "send21-webhook",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": true
+        }
+      },
+      "id": "8d35e171-c8c7-59aa-9b95-595e9d1d658b",
+      "name": "send21 webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        800
+      ],
+      "webhookId": "132650a0-7dc6-5f5c-be98-4bdb6be3ae3a"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Verifies X-Send21-Signature-V2 = t=<unix>,v1=<hex HMAC-SHA256 of \"<t>.<delivery id>.<raw body>\">\n// over the RAW body, refuses deliveries more than 300 s (5 minutes) old, and flags\n// delivery ids this workflow already handled (send21 retries reuse X-Send21-Delivery;\n// deduplicating is the receiver's job).\n// Needs NODE_FUNCTION_ALLOW_BUILTIN=crypto and SEND21_WEBHOOK_SECRET in the n8n environment.\nconst crypto = require('crypto');\nconst secret = $env.SEND21_WEBHOOK_SECRET;\nconst item = $input.first();\nconst h = item.json.headers || {};\nlet raw = null;\nif (item.binary && item.binary.data) {\n  try {\n    raw = await this.helpers.getBinaryDataBuffer(0, 'data');\n  } catch (e) {\n    raw = item.binary.data.data ? Buffer.from(item.binary.data.data, 'base64') : null;\n  }\n}\nconst sig = String(h['x-send21-signature-v2'] || '');\nconst deliveryId = String(h['x-send21-delivery'] || '');\nconst t = (/(?:^|,)t=(\\d+)/.exec(sig) || [])[1];\nconst v1 = (/(?:^|,)v1=([0-9a-f]{64})/.exec(sig) || [])[1];\nlet reason = '';\nif (!secret) reason = 'SEND21_WEBHOOK_SECRET is not set';\nelse if (!raw) reason = 'raw body missing (turn on the Raw Body option of the webhook node)';\nelse if (!t || !v1 || !deliveryId) reason = 'missing X-Send21-Signature-V2 or X-Send21-Delivery';\nelse if (Math.abs(Date.now() / 1000 - Number(t)) > 300) reason = 'delivery more than 5 minutes old';\nelse {\n  const expected = crypto.createHmac('sha256', secret).update(t + '.' + deliveryId + '.').update(raw).digest();\n  if (!crypto.timingSafeEqual(Buffer.from(v1, 'hex'), expected)) reason = 'signature does not match';\n}\nif (reason) return [{ json: { valid: false, reason } }];\n\nlet payload;\ntry { payload = JSON.parse(raw.toString('utf8')); } catch (e) { return [{ json: { valid: false, reason: 'body is not JSON' } }]; }\nconst store = $getWorkflowStaticData('global');\nconst seen = store.seenDeliveries || {};\nreturn [{ json: {\n  valid: true,\n  duplicate: Object.prototype.hasOwnProperty.call(seen, deliveryId),\n  deliveryId,\n  event: payload.event,\n  data: payload.data || {},\n} }];\n"
+      },
+      "id": "65149d28-d2de-5639-affb-b14d670b4753",
+      "name": "Verify signature (V2)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "dc04dc89-ba45-58cf-a548-10983e3423dc",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "f6c2330e-3eb9-5c42-a175-2eba4d2be221",
+      "name": "Signature valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        440,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.reason }}",
+        "options": {
+          "responseCode": 401
+        }
+      },
+      "id": "8930eb02-75ee-590e-922d-bfbae49c2d6d",
+      "name": "Respond 401",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        660,
+        960
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "3b0eb603-e604-519e-9fef-e66b66d1bde0",
+              "leftValue": "={{ $json.duplicate }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "ea810438-6d18-5c60-84ae-79bf00151121",
+      "name": "Already handled?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        660,
+        760
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "duplicate delivery, ignored",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "1712bb7c-ca49-5444-b466-59ec901a0284",
+      "name": "Respond 200 (duplicate)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        880,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Applies one verified, new delivery to the invoice it belongs to, and records the\n// delivery id so a retry of the same delivery is ignored.\nconst store = $getWorkflowStaticData('global');\nstore.invoices = store.invoices || {};\nstore.seenDeliveries = store.seenDeliveries || {};\nconst { deliveryId, event, data } = $input.first().json;\nconst inv = (data.orderId && store.invoices[data.orderId]) ||\n  Object.values(store.invoices).find((i) => data.paymentRequestId && i.paymentRequestId === data.paymentRequestId) || null;\n\nlet action = 'ignore';\nlet note = '';\nif (event === 'draft.confirmed') {\n  if (!inv) {\n    action = 'unknown';\n    note = 'Confirmed payment for orderId ' + data.orderId + ', but this workflow has no such invoice.';\n  } else if (data.paymentRequestId && inv.paymentRequestId && data.paymentRequestId !== inv.paymentRequestId) {\n    action = 'review';\n    note = 'The payment belongs to another pay link (' + data.paymentRequestId + ') than this invoice.';\n  } else if (String(data.fiatCurrency || '').toUpperCase() !== inv.currency || Math.abs(Number(data.fiatAmount) - inv.amount) > 0.005) {\n    action = 'review';\n    note = 'Paid ' + data.fiatAmount + ' ' + data.fiatCurrency + ', but the invoice is ' + inv.amount + ' ' + inv.currency + '.';\n  } else if (inv.status === 'paid') {\n    action = 'ignore';\n    note = 'Invoice was already marked paid.';\n  } else {\n    action = 'paid';\n    Object.assign(inv, { status: 'paid', paidAt: data.occurredAt, txId: data.txId, network: data.network,\n      sentCurrency: data.sentCurrency, sentAmount: data.sentAmount, draftId: data.draftId });\n    if (data.receivedAmountSats != null) note = 'You accepted a different amount in send21 before it confirmed.';\n  }\n} else if (event === 'draft.amount_mismatch') {\n  action = 'review';\n  if (inv && inv.status !== 'paid') inv.status = 'needs your decision';\n  note = 'A transfer with a different amount arrived. It is not a payment until YOU accept or decline it in send21. This workflow never decides.';\n} else if (event === 'payment_request.expired' && !(inv && inv.status === 'paid')) {\n  action = 'expired';\n  if (inv) inv.status = 'expired';\n  note = 'Opened by the payer: ' + data.opened + '. Picked a currency: ' + data.quoteRequested + '.';\n} else if (event === 'test') {\n  action = 'test';\n}\n\nstore.seenDeliveries[deliveryId] = Date.now();\nconst cutoff = Date.now() - 30 * 24 * 3600 * 1000;\nfor (const [id, ts] of Object.entries(store.seenDeliveries)) if (ts < cutoff) delete store.seenDeliveries[id];\n\nconst ref = inv ? 'Invoice ' + inv.invoiceId + ' (' + inv.amount + ' ' + inv.currency + ', ' + inv.clientName + ')' : 'Order ' + (data.orderId || '?');\nconst subjects = { paid: ref + ' is paid', review: ref + ' needs your decision', expired: ref + ' expired unpaid', unknown: 'send21: payment for an unknown order' };\nconst settings = store.settings || {};\nreturn [{ json: {\n  action, event, deliveryId, note,\n  ownerEmail: settings.ownerEmail || '', senderEmail: settings.senderEmail || '',\n  invoice: inv,\n  subject: subjects[action] || ref,\n  text: [subjects[action] || ref, note,\n    data.txId ? 'Transaction: ' + data.txId + ' on ' + data.network + ' (' + data.sentAmount + ' ' + data.sentCurrency + ')' : '',\n    inv ? 'Pay link: ' + inv.payLink : ''].filter(Boolean).join('\\n'),\n} }];\n"
+      },
+      "id": "0725c7b2-b31c-5814-8e6b-41b134e6dfa3",
+      "name": "Apply event to invoice",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        860
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "ok",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "ad0a2168-4306-5a83-8a90-feed774db3d6",
+      "name": "Respond 200",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1100,
+        860
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "paid",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "ebd79926-4d87-56a7-8409-4c0e0888e482"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "paid"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "review",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "58ff0ccb-fecd-576e-bc0f-c2c38d2f6190"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "review"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "expired",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "70aac626-6b06-502f-923c-a3196b9c5de5"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "expired"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "unknown",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "3e5c0c43-5870-536b-909d-8d3c165e4267"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "unknown"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a4caaeff-c753-5ca6-aab7-f1aa0f14859a",
+      "name": "Route by result",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1320,
+        860
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $json.senderEmail }}",
+        "toEmail": "={{ $json.invoice.clientEmail }}",
+        "subject": "=Payment received: invoice {{ $json.invoice.invoiceId }}",
+        "emailFormat": "text",
+        "text": "=Hi {{ $json.invoice.clientName }},\n\nyour payment for invoice {{ $json.invoice.invoiceId }} ({{ $json.invoice.amount }} {{ $json.invoice.currency }}) is confirmed.\nTransaction: {{ $json.invoice.txId }} on {{ $json.invoice.network }}.\n\nThank you!",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "5052d348-4d09-5980-a0d6-681438e6025c",
+      "name": "Receipt to client",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1580,
+        700
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "",
+          "name": "SMTP account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $json.senderEmail }}",
+        "toEmail": "={{ $json.ownerEmail }}",
+        "subject": "={{ $json.subject }}",
+        "emailFormat": "text",
+        "text": "={{ $json.text }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "db43cb14-1b60-573f-922a-8e1e75bfee81",
+      "name": "Notify me",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1580,
+        900
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "",
+          "name": "SMTP account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {},
+      "id": "fd4d7540-b081-5184-8815-8c1d24b314ff",
+      "name": "Register webhook (run once)",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        1200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://send21.io/api/v1/webhooks",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"url\": \"https://YOUR-N8N-HOST/webhook/send21-webhook\",\n  \"events\": [\n    \"draft.confirmed\",\n    \"draft.amount_mismatch\",\n    \"draft.mismatch_accepted\",\n    \"payment_request.expired\"\n  ]\n}",
+        "options": {}
+      },
+      "id": "a9e044c1-4a57-5bff-b5c2-ecf6400fa4db",
+      "name": "POST /webhooks (send21)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        220,
+        1200
+      ],
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "",
+          "name": "send21 API key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "### Register the webhook once\nReplace `https://YOUR-N8N-HOST` in **POST /webhooks** with your public n8n URL (HTTPS, public address), run it once, and copy `secret` from the output into the `SEND21_WEBHOOK_SECRET` environment variable. It is shown only once. Then restart n8n.",
+        "height": 220,
+        "width": 520,
+        "color": 6
+      },
+      "id": "d4f0f0de-702b-54a4-b11b-72014cd40fd9",
+      "name": "Note: register",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        440,
+        1120
+      ]
+    }
+  ],
+  "connections": {
+    "New invoice (form)": {
+      "main": [
+        [
+          {
+            "node": "Normalize invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "New invoice (API)": {
+      "main": [
+        [
+          {
+            "node": "Normalize invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize invoice": {
+      "main": [
+        [
+          {
+            "node": "Input valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Input valid?": {
+      "main": [
+        [
+          {
+            "node": "Settings",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "From the form?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settings": {
+      "main": [
+        [
+          {
+            "node": "Build payment request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build payment request": {
+      "main": [
+        [
+          {
+            "node": "Has addresses?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has addresses?": {
+      "main": [
+        [
+          {
+            "node": "Create pay link (send21)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "From the form?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create pay link (send21)": {
+      "main": [
+        [
+          {
+            "node": "Record invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record invoice": {
+      "main": [
+        [
+          {
+            "node": "Pay link created?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pay link created?": {
+      "main": [
+        [
+          {
+            "node": "Email pay link to client",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "From the form?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email pay link to client": {
+      "main": [
+        [
+          {
+            "node": "Reply after email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reply after email": {
+      "main": [
+        [
+          {
+            "node": "From the form?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "From the form?": {
+      "main": [
+        [
+          {
+            "node": "Show result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "send21 webhook": {
+      "main": [
+        [
+          {
+            "node": "Verify signature (V2)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify signature (V2)": {
+      "main": [
+        [
+          {
+            "node": "Signature valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Signature valid?": {
+      "main": [
+        [
+          {
+            "node": "Already handled?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond 401",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Already handled?": {
+      "main": [
+        [
+          {
+            "node": "Respond 200 (duplicate)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Apply event to invoice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apply event to invoice": {
+      "main": [
+        [
+          {
+            "node": "Respond 200",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond 200": {
+      "main": [
+        [
+          {
+            "node": "Route by result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by result": {
+      "main": [
+        [
+          {
+            "node": "Notify me",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Receipt to client",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notify me",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notify me",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notify me",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Register webhook (run once)": {
+      "main": [
+        [
+          {
+            "node": "POST /webhooks (send21)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

@@ -1,0 +1,6 @@
+langgraph>=1.0
+langgraph-checkpoint-sqlite>=2.0
+langchain-mcp-adapters>=0.1
+# only for the optional free-text intake (--text); pick your provider package:
+# langchain>=1.0
+# langchain-openai

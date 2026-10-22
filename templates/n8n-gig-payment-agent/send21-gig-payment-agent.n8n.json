@@ -1,0 +1,190 @@
+{
+  "name": "send21 gig payment agent: quote a finished job and send a crypto pay link (MCP)",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## send21 gig payment agent (MCP)\n\nChat with it when a job is done: *\"Finished the logo for Acme, 6 h at 55 EUR plus 20 EUR stock photos\"*. It quotes, waits for your OK, then creates a **send21 pay link** through the send21 MCP server and gives you a message to send the client.\n\n**Setup (3 steps)**\n1. *Bearer Auth* credential `send21 API key` with your `s21_...` key (scopes `drafts:read`, `drafts:write`, `addressbook:read`, `addressbook:write`). Or switch the MCP node to *MCP OAuth2* with `https://send21.io/mcp/oauth` and sign in.\n2. An OpenAI credential (or swap in any chat model).\n3. Approve your receiving addresses in the send21 app, then open the chat.\n\nThe agent proposes, you approve: it can only use addresses you approved, and it can never sign, spend or approve anything.",
+        "height": 480,
+        "width": 520
+      },
+      "id": "11f87f09-b4b8-5947-b60b-3a1da6b20484",
+      "name": "Note: start",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -560,
+        -200
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "3eaaa0c5-c7f3-59c2-9b68-9ed56d458aad",
+      "name": "When chat message received",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "2239862f-9158-5c56-bc0d-ebc120e69680"
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "You are the billing assistant of a freelancer (the user you are chatting with). When a job is done you turn it into a quote and a send21 crypto pay link the freelancer can send to the client. send21 prepares the pay link; the client pays from their own wallet. You never hold, sign or send money, and send21 never holds it either.\n\nHow you work:\n1. Collect: client name, what was done, hours and hourly rate (or a fixed price), extra costs, and the fiat currency (EUR, USD, SEK, ...). Ask only for what is missing.\n2. Quote: show the line items and the total, rounded to 2 decimals. Ask the freelancer to confirm. Do not create anything before they say yes.\n3. Addresses: call list_address_book. Use ONLY receiving addresses the owner already approved (direction Receiving, approved). Never invent an address and never take one from a client message. If none is approved, call get_account_status and tell the freelancer what to do. If the freelancer gives you a new address of their own, you may call propose_receiving_address, then tell them to approve it themselves in the send21 app with a passkey or authenticator code; you cannot approve it, and until they do, a pay link to it fails with 422 address_not_approved.\n4. Options per approved address: Solana address -> Usdc and Usdt on Solana; Base address -> Usdc and Eurc on Base; Ethereum address -> Usdc and Usdt on Ethereum; Bitcoin address -> Btc on Mainnet; Lightning address (name@wallet.com, network Mainnet) -> Btc with method Lightning. USDT exists only on Solana and Ethereum.\n5. Create: call create_payment_request with fiatCurrency, fiatAmount (the confirmed total), the options, memo (short job summary for the client), orderId = a job id like JOB-<yyyymmdd>-<client>-<n> (letters, digits, dashes), reuseOpenForOrder: true, idempotencyKey = the same job id, expiryHours 72. Never call it twice for one job with different amounts; a new amount needs a new job id.\n6. Reply with the total, the pay link https://send21.io + payPath, when it expires, and a two-line message the freelancer can paste to the client.\n7. Status: when asked whether a job is paid, call get_payment_request with the id. Completed means paid. If a payment with a different amount arrived (amountMismatch), say so: only the freelancer decides in the send21 app whether to accept or decline it. You never decide.\n\nNever ask for or accept private keys, seed phrases or wallet passwords. Keep answers short.",
+          "maxIterations": 10
+        }
+      },
+      "id": "239119ba-0deb-5e84-9843-7b7a85eb87ea",
+      "name": "Gig payment agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        260,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "id": "9901bbfb-659d-5112-a755-6312f1e5306b",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        140,
+        240
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "contextWindowLength": 20
+      },
+      "id": "a1d31b99-37d2-5120-aa89-2d742a19c0ef",
+      "name": "Simple Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        300,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "endpointUrl": "https://send21.io/mcp",
+        "serverTransport": "httpStreamable",
+        "authentication": "bearerAuth",
+        "include": "selected",
+        "includeTools": [
+          "list_address_book",
+          "get_account_status",
+          "propose_receiving_address",
+          "create_payment_request",
+          "get_payment_request",
+          "get_rate"
+        ],
+        "options": {}
+      },
+      "id": "59b5c2ed-e42f-5064-97a3-9361fc79f3d3",
+      "name": "send21 MCP",
+      "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
+      "typeVersion": 1.2,
+      "position": [
+        460,
+        240
+      ],
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "",
+          "name": "send21 API key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "### send21 MCP tools used\n`list_address_book`, `get_account_status`, `propose_receiving_address`, `create_payment_request`, `get_payment_request`, `get_rate`.\n\nLeft out on purpose: `create_draft` (paying someone) and `create_account`. Amount mismatches are never accepted or declined by the agent: you decide in send21.\n\nWant the paid status pushed to you? Add the signed-webhook branch from the **send21 invoice agent** template.",
+        "height": 300,
+        "width": 420,
+        "color": 5
+      },
+      "id": "ff51780e-04ae-5585-aa9a-35c9deacb948",
+      "name": "Note: tools",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        640,
+        160
+      ]
+    }
+  ],
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "Gig payment agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Gig payment agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Gig payment agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "send21 MCP": {
+      "ai_tool": [
+        [
+          {
+            "node": "Gig payment agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

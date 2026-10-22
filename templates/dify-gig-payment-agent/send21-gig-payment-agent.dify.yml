@@ -1,0 +1,564 @@
+app:
+  description: 'Gig payment agent: turns a finished job into a quote and a send21 crypto pay link priced in your currency, with a message for the client. The client pays from their own wallet; send21 never holds the money.'
+  icon: 💸
+  icon_background: '#E4FBCC'
+  mode: workflow
+  name: send21 gig payment agent
+  use_icon_as_answer_icon: false
+dependencies: []
+kind: app
+version: 0.3.1
+workflow:
+  conversation_variables: []
+  environment_variables:
+  - description: send21 API key (s21_...) with drafts:write. Create it at https://send21.io/api-keys
+    id: a093b00f-9508-51da-a589-9ba30f980182
+    name: SEND21_API_KEY
+    selector:
+    - env
+    - SEND21_API_KEY
+    value: ''
+    value_type: secret
+  - description: Your own Solana address, approved in the send21 app (USDC and USDT on Solana)
+    id: ab0bdc11-b751-5dca-b341-042c65dd555e
+    name: SEND21_SOLANA_ADDRESS
+    selector:
+    - env
+    - SEND21_SOLANA_ADDRESS
+    value: ''
+    value_type: string
+  - description: Your own Base address, approved in the send21 app (USDC and EURC on Base)
+    id: a568f923-b2cf-5786-927c-416e316871b3
+    name: SEND21_BASE_ADDRESS
+    selector:
+    - env
+    - SEND21_BASE_ADDRESS
+    value: ''
+    value_type: string
+  - description: Your own Lightning address name@wallet.com (BTC over Lightning)
+    id: 55b815c6-024f-5361-a149-07ee8b1d11e9
+    name: SEND21_LIGHTNING_ADDRESS
+    selector:
+    - env
+    - SEND21_LIGHTNING_ADDRESS
+    value: ''
+    value_type: string
+  features:
+    file_upload:
+      enabled: false
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+  graph:
+    edges:
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: start
+        targetType: code
+      id: start-source-quote-target
+      source: start
+      sourceHandle: source
+      target: quote
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: code
+        targetType: http-request
+      id: quote-source-send21-target
+      source: quote
+      sourceHandle: source
+      target: send21
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: http-request
+        targetType: code
+      id: send21-source-read-target
+      source: send21
+      sourceHandle: source
+      target: read
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: code
+        targetType: llm
+      id: read-source-message-target
+      source: read
+      sourceHandle: source
+      target: message
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: llm
+        targetType: end
+      id: message-source-end-target
+      source: message
+      sourceHandle: source
+      target: end
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    nodes:
+    - data:
+        desc: The finished job
+        title: Start
+        type: start
+        variables:
+        - label: Client name
+          max_length: 80
+          options: []
+          required: true
+          type: text-input
+          variable: client_name
+        - label: What was done
+          max_length: 400
+          options: []
+          required: true
+          type: paragraph
+          variable: job_summary
+        - label: Hours worked
+          max_length: null
+          options: []
+          required: false
+          type: number
+          variable: hours
+        - label: Hourly rate
+          max_length: null
+          options: []
+          required: false
+          type: number
+          variable: hourly_rate
+        - label: Extra costs or fixed price
+          max_length: null
+          options: []
+          required: false
+          type: number
+          variable: extra_costs
+        - label: Currency
+          max_length: null
+          options:
+          - EUR
+          - USD
+          - GBP
+          - SEK
+          - CHF
+          required: true
+          type: select
+          variable: currency
+          default: EUR
+        - label: Job id (optional, makes retries return the same link)
+          max_length: 64
+          options: []
+          required: false
+          type: text-input
+          variable: job_id
+        selected: false
+      height: 260
+      id: start
+      position:
+        x: 30
+        y: 260
+      positionAbsolute:
+        x: 30
+        y: 260
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        desc: Computes the total in code (never by the model) and builds the send21 request. Addresses come from environment variables.
+        title: Quote
+        type: code
+        code_language: python3
+        code: |
+          import json
+          import re
+          from datetime import datetime, timezone
+
+
+          def main(client_name: str, job_summary: str, hours, hourly_rate, extra_costs, currency: str, job_id: str,
+                   solana_address: str, base_address: str, lightning_address: str) -> dict:
+              """Turns the finished job into a quote and the send21 payment request body.
+
+              The receiving addresses come from environment variables that only the app owner sets,
+              never from the run inputs.
+              """
+              currency = (currency or "").strip().upper()
+              if not re.fullmatch(r"[A-Z]{3}", currency):
+                  raise ValueError("currency must be a 3-letter code such as EUR, USD or SEK")
+              hours = float(hours or 0)
+              rate = float(hourly_rate or 0)
+              extras = float(extra_costs or 0)
+              if hours < 0 or rate < 0 or extras < 0:
+                  raise ValueError("hours, hourly rate and extra costs cannot be negative")
+              labour = round(hours * rate, 2)
+              total = round(labour + extras, 2)
+              if total <= 0:
+                  raise ValueError("the total must be above 0")
+
+              job_id = (job_id or "").strip()
+              if job_id and not re.fullmatch(r"[A-Za-z0-9._-]{1,64}", job_id):
+                  raise ValueError("job id may only use letters, digits, dot, dash and underscore")
+              if not job_id:
+                  slug = re.sub(r"[^A-Za-z0-9]+", "-", client_name or "client").strip("-")[:20] or "client"
+                  job_id = "JOB-" + datetime.now(timezone.utc).strftime("%Y%m%d-%H%M") + "-" + slug
+
+              options = []
+              if (solana_address or "").strip():
+                  a = solana_address.strip()
+                  options += [{"currency": "Usdc", "network": "Solana", "address": a},
+                              {"currency": "Usdt", "network": "Solana", "address": a}]
+              if (base_address or "").strip():
+                  a = base_address.strip()
+                  options += [{"currency": "Usdc", "network": "Base", "address": a},
+                              {"currency": "Eurc", "network": "Base", "address": a}]
+              if (lightning_address or "").strip():
+                  options.append({"currency": "Btc", "network": "Mainnet", "address": lightning_address.strip(), "method": "Lightning"})
+              if not options:
+                  raise ValueError("set at least one receiving address in the environment variables "
+                                   "(SEND21_SOLANA_ADDRESS, SEND21_BASE_ADDRESS or SEND21_LIGHTNING_ADDRESS)")
+
+              lines = []
+              if hours and rate:
+                  lines.append(f"{hours:g} h x {rate:.2f} {currency} = {labour:.2f} {currency}")
+              if extras:
+                  lines.append(f"Extra costs: {extras:.2f} {currency}")
+              lines.append(f"Total: {total:.2f} {currency}")
+              memo = (f"{job_id}: {job_summary or 'work done'}").strip()[:500]
+
+              body = {
+                  "fiatCurrency": currency,
+                  "fiatAmount": total,
+                  "orderId": job_id,
+                  "memo": memo,
+                  "expiryHours": 72,
+                  "reuseOpenForOrder": True,
+                  "options": options,
+              }
+              return {
+                  "total": total,
+                  "order_id": job_id,
+                  "quote": "\n".join(lines),
+                  "request_body": json.dumps(body),
+              }
+        outputs:
+          total:
+            children: null
+            type: number
+          order_id:
+            children: null
+            type: string
+          quote:
+            children: null
+            type: string
+          request_body:
+            children: null
+            type: string
+        variables:
+        - variable: client_name
+          value_selector:
+          - start
+          - client_name
+        - variable: job_summary
+          value_selector:
+          - start
+          - job_summary
+        - variable: hours
+          value_selector:
+          - start
+          - hours
+        - variable: hourly_rate
+          value_selector:
+          - start
+          - hourly_rate
+        - variable: extra_costs
+          value_selector:
+          - start
+          - extra_costs
+        - variable: currency
+          value_selector:
+          - start
+          - currency
+        - variable: job_id
+          value_selector:
+          - start
+          - job_id
+        - variable: solana_address
+          value_selector:
+          - env
+          - SEND21_SOLANA_ADDRESS
+        - variable: base_address
+          value_selector:
+          - env
+          - SEND21_BASE_ADDRESS
+        - variable: lightning_address
+          value_selector:
+          - env
+          - SEND21_LIGHTNING_ADDRESS
+        selected: false
+      height: 90
+      id: quote
+      position:
+        x: 350
+        y: 260
+      positionAbsolute:
+        x: 350
+        y: 260
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        desc: POST /api/v1/payment-requests with an Idempotency-Key
+        title: Create send21 pay link
+        type: http-request
+        method: post
+        url: https://send21.io/api/v1/payment-requests
+        authorization:
+          type: api-key
+          config:
+            type: bearer
+            api_key: '{{#env.SEND21_API_KEY#}}'
+        headers: 'Idempotency-Key:gig-{{#quote.order_id#}}
+
+          Content-Type:application/json'
+        params: ''
+        body:
+          type: json
+          data:
+          - id: dbd1cc2b-a02e-5ad9-8914-7e581c9759a5
+            key: ''
+            type: text
+            value: '{{#quote.request_body#}}'
+        timeout:
+          connect: 10
+          read: 30
+          write: 30
+          max_connect_timeout: 0
+          max_read_timeout: 0
+          max_write_timeout: 0
+        ssl_verify: true
+        retry_config:
+          enabled: true
+          max_retries: 2
+          retry_interval: 1000
+        selected: false
+      height: 90
+      id: send21
+      position:
+        x: 670
+        y: 260
+      positionAbsolute:
+        x: 670
+        y: 260
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        desc: Builds the pay link or stops with the reason (for example address_not_approved)
+        title: Read answer
+        type: code
+        code_language: python3
+        code: |
+          import json
+
+
+          def main(status_code, body: str, total, currency: str) -> dict:
+              """Reads the send21 answer and builds the pay link, or stops with a clear reason."""
+              try:
+                  data = json.loads(body or "{}")
+              except Exception:
+                  data = {}
+              code = int(status_code or 0)
+              if 200 <= code < 300 and data.get("payPath"):
+                  return {
+                      "pay_link": "https://send21.io" + data["payPath"],
+                      "payment_request_id": data.get("id", ""),
+                      "expires_at": data.get("expiresAt", ""),
+                  }
+              text = body or ""
+              if "address_not_approved" in text:
+                  reason = ("A receiving address in the environment variables is not approved yet. Approve it yourself in the "
+                            "send21 app (address book, passkey or authenticator code), then run again. No API key can approve an address.")
+              elif code == 402:
+                  reason = "send21 asks you to settle accrued fees first (in the app, or POST /api/v1/fees/accrued/settle)."
+              elif code in (401, 403):
+                  reason = "The send21 API key is missing, wrong or lacks the drafts:write scope (or the owner has not confirmed the account)."
+              elif code == 422:
+                  reason = "send21 refused the request (422): " + text[:300]
+              else:
+                  reason = f"send21 answered {code}: " + text[:300]
+              raise ValueError(reason)
+        outputs:
+          pay_link:
+            children: null
+            type: string
+          payment_request_id:
+            children: null
+            type: string
+          expires_at:
+            children: null
+            type: string
+        variables:
+        - variable: status_code
+          value_selector:
+          - send21
+          - status_code
+        - variable: body
+          value_selector:
+          - send21
+          - body
+        - variable: total
+          value_selector:
+          - quote
+          - total
+        - variable: currency
+          value_selector:
+          - start
+          - currency
+        selected: false
+      height: 90
+      id: read
+      position:
+        x: 990
+        y: 260
+      positionAbsolute:
+        x: 990
+        y: 260
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        desc: 'Writes the message to the client. It only words it: amount and link come from the steps before.'
+        title: Write client message
+        type: llm
+        model:
+          provider: langgenius/openai/openai
+          name: gpt-4o-mini
+          mode: chat
+          completion_params:
+            temperature: 0.3
+        prompt_template:
+        - id: 8622ff38-5698-5c2a-bd57-98b6810dc1c9
+          role: system
+          text: You write short, friendly payment messages from a freelancer to a client. Use the exact amount and link you are given, never change them, never add payment details of your own. Mention that the client picks a currency on the page and pays from their own wallet, and that the rate locks for 15 minutes once they pick. No more than 90 words. Plain text.
+        - id: ef268f5a-9328-5569-aeb5-d8d74e92ce6f
+          role: user
+          text: 'Client: {{#start.client_name#}}
+
+            Work done: {{#start.job_summary#}}
+
+            Quote:
+
+            {{#quote.quote#}}
+
+            Pay link: {{#read.pay_link#}}
+
+            The link expires at {{#read.expires_at#}} (UTC).'
+        context:
+          enabled: false
+          variable_selector: []
+        vision:
+          enabled: false
+        memory: null
+        structured_output_enabled: false
+        selected: false
+      height: 90
+      id: message
+      position:
+        x: 1310
+        y: 260
+      positionAbsolute:
+        x: 1310
+        y: 260
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    - data:
+        desc: ''
+        title: End
+        type: end
+        outputs:
+        - value_selector:
+          - read
+          - pay_link
+          value_type: string
+          variable: pay_link
+        - value_selector:
+          - read
+          - payment_request_id
+          value_type: string
+          variable: payment_request_id
+        - value_selector:
+          - read
+          - expires_at
+          value_type: string
+          variable: expires_at
+        - value_selector:
+          - quote
+          - total
+          value_type: number
+          variable: total
+        - value_selector:
+          - quote
+          - order_id
+          value_type: string
+          variable: job_id
+        - value_selector:
+          - quote
+          - quote
+          value_type: string
+          variable: quote
+        - value_selector:
+          - message
+          - text
+          value_type: string
+          variable: client_message
+        selected: false
+      height: 90
+      id: end
+      position:
+        x: 1630
+        y: 260
+      positionAbsolute:
+        x: 1630
+        y: 260
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 244
+    viewport:
+      x: 0
+      y: 0
+      zoom: 0.8

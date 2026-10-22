@@ -22,6 +22,7 @@ Copy-paste setups for common tools:
 | [claude-desktop](claude-desktop) | `claude_desktop_config.json` snippet, 3-step quickstart that ends with a working pay link, and a sample prompt. |
 | [cursor](cursor) | `.cursor/mcp.json` snippet, quickstart and a sample prompt. |
 | [n8n](n8n) | Importable workflow: create a pay link with `POST /api/v1/payment-requests`, register a webhook, and receive and verify the `draft.confirmed` confirmation. |
+| [templates](templates) | Ready-made agents that do a real job: an **invoice agent** for n8n and LangGraph (pay link by email, marked paid on the signed `draft.confirmed` webhook) and a **gig payment agent** for n8n (AI Agent with the send21 MCP server) and Dify (workflow DSL). |
 
 ## Examples
 
