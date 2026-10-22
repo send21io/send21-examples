@@ -10,7 +10,7 @@ dependencies = ["langchain-core>=0.3,<2", "httpx>=0.27"]
 keywords = ["langchain", "tools", "payments", "non-custodial", "send21", "usdc", "bitcoin", "lightning", "mcp"]
 
 [project.urls]
-Homepage = "https://send21.io"
+Homepage = "https://send21.io/"
 Documentation = "https://send21.io/docs"
 Source = "https://github.com/send21io/send21-examples/tree/main/integrations/langchain"
 Examples = "https://github.com/send21io/send21-examples"

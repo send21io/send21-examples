@@ -24,7 +24,7 @@
     "lightning"
   ],
   "license": "MIT",
-  "homepage": "https://send21.io",
+  "homepage": "https://send21.io/",
   "repository": {
     "type": "git",
     "url": "https://github.com/send21io/send21-examples.git",
