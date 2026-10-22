@@ -17,6 +17,20 @@ send21 is a remote MCP server. Nothing needs to be cloned or built.
 }
 ```
 
+Or, for a client that supports MCP sign-in (OAuth), no key:
+
+```json
+{
+  "mcpServers": {
+    "send21": {
+      "url": "https://send21.io/mcp/oauth"
+    }
+  }
+}
+```
+
+The user signs in to send21 in the browser and approves. Claude Code: `claude mcp add --transport http send21 https://send21.io/mcp/oauth`, then `/mcp` to sign in. VS Code (`.vscode/mcp.json`) uses `"servers"` and `"type": "http"` with the same URL.
+
 If the client only supports stdio servers, use mcp-remote:
 
 ```json

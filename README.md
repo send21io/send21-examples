@@ -73,11 +73,52 @@ You need Node.js 20.12 or newer. The P2P apps ([apps/send21-pair](apps/send21-pa
 cp .env.example .env
 ```
 
-Calls that create something need an API key or OAuth sign-in. The account owner creates scoped keys at https://send21.io/api-keys. Clients that support MCP sign-in (OAuth), such as Claude, Claude Code, Cursor, VS Code and Muse Code, can use `https://send21.io/mcp/oauth` with no headers instead: you sign in to send21 in the browser and approve the app, no key to copy. Connected apps only ever use receiving addresses the owner approved. Details: https://send21.io/docs/mcp ("Sign in instead of a key"). `tools/list` and `get_fee_schedule` on the MCP server work without a key.
+Calls that create something need an API key or OAuth sign-in. The account owner creates scoped keys at https://send21.io/api-keys. Clients that support MCP sign-in (OAuth), such as Claude, Claude Code, Cursor, VS Code and Muse Code, can use `https://send21.io/mcp/oauth` with no headers instead: you sign in to send21 in the browser and approve the app, no key to copy. Connected apps only ever use receiving addresses the owner approved. See [Sign in instead of an API key](#sign-in-instead-of-an-api-key). `tools/list` and `get_fee_schedule` on the MCP server work without a key.
 
 **Approve your receiving addresses first.** New send21 accounts (created on or after 20 Oct 2026) only accept receiving addresses the owner approved, Lightning addresses included. Add them in the send21 app, or let an agent propose them with MCP `propose_receiving_address`, then sign in and approve each with a passkey or authenticator code. No API key can approve an address. Older accounts can opt in under Settings.
 
 Testing with your own key: use the live networks and create a small draft to your own address. A draft moves no money until someone signs it, so nothing moves while you integrate. Cancel it when you are done.
+
+## Sign in instead of an API key
+
+Clients that support MCP sign-in (OAuth) can connect to `https://send21.io/mcp/oauth` with no key and no headers. The client opens send21 in your browser; you sign in, see what the app asks for, and approve. A connected app only ever uses receiving addresses you approved. It is listed under [API keys](https://send21.io/api-keys) as a connected app, where Disconnect ends it at once, and a connection nobody uses for 90 days ends by itself.
+
+**Claude Code**
+
+```bash
+claude mcp add --transport http send21 https://send21.io/mcp/oauth
+# then run /mcp in Claude Code and choose send21 to sign in
+# (or, from your shell: claude mcp login send21)
+```
+
+**Cursor** (`.cursor/mcp.json` in your project, or `~/.cursor/mcp.json` for all projects)
+
+```json
+{
+  "mcpServers": {
+    "send21": {
+      "url": "https://send21.io/mcp/oauth"
+    }
+  }
+}
+```
+
+**VS Code** (`.vscode/mcp.json`)
+
+```json
+{
+  "servers": {
+    "send21": {
+      "type": "http",
+      "url": "https://send21.io/mcp/oauth"
+    }
+  }
+}
+```
+
+**Any MCP client that supports OAuth:** add `https://send21.io/mcp/oauth` as a remote (Streamable HTTP) MCP server with no headers, then sign in when the client asks.
+
+Prefer an API key? It still works: use `https://send21.io/mcp` with `Authorization: Bearer s21_...`, a scoped key created at https://send21.io/api-keys. `tools/list` and `get_fee_schedule` work without either. Details: https://send21.io/docs/mcp
 
 ## mcp-payment-request
 
