@@ -3,17 +3,130 @@
   "nodes": [
     {
       "parameters": {
-        "content": "## send21 invoice agent\n\nTakes a client, an amount and a currency, creates a **send21 pay link** (crypto, priced in your currency), emails it to the client, then waits for the signed **draft.confirmed** webhook and marks the invoice paid.\n\n**Setup (3 steps)**\n1. Credentials: *Bearer Auth* named `send21 API key` with your `s21_...` key (scopes `drafts:write`, `drafts:read`, `webhooks:manage`), and an *SMTP* account.\n2. Open **Settings**: your own receiving addresses (approved in the send21 app), your email.\n3. Activate, run **Register webhook (run once)**, save the returned secret in a *Crypto* credential `send21 webhook secret` (Hmac Secret).\n\nThe payer signs in their own wallet. send21 never holds keys or funds.",
-        "height": 380,
-        "width": 620
+        "content": "## Send crypto invoice pay links and mark payments with send21\n\n### How it works\n1. You enter an invoice (client, email, amount, currency) in an n8n form, or another system or AI agent POSTs it as JSON.\n2. The workflow creates a **send21 pay link** priced in your currency. The client can pay in USDC or USDT on Solana, USDC or EURC on Base, or BTC over Lightning.\n3. The link is emailed to the client, and you get it back on the form page or as JSON.\n4. When the payment confirms, send21 sends a signed `draft.confirmed` webhook. The workflow checks it and marks the invoice **paid**, then emails the client a receipt and you a note.\n\nsend21 is non-custodial: payments go straight to **your own** addresses, the client signs in their own wallet, and send21 never holds keys or funds.\n\n### Setup (about 5 minutes)\n1. Create an API key at send21.io/api-keys with scopes `drafts:write`, `drafts:read` and `webhooks:manage`. Save it as a *Bearer Auth* credential named `send21 API key`. Add an *SMTP* credential.\n2. Open **Settings** and fill in your receiving addresses (approved in the send21 app) and your emails.\n3. Activate the workflow and run **Register webhook (run once)** (see the note below).\n\n### Requirements\nA send21 account, an SMTP account, and a public HTTPS n8n URL for the webhook.\n\nDocs: send21.io/docs/webhooks · Questions: info@send21.io",
+        "height": 900,
+        "width": 640,
+        "color": 7
       },
-      "id": "e704c715-15c9-50b5-b53f-a67e4e7205eb",
-      "name": "Note: start",
+      "id": "95ce8a73-06f6-5db3-8fa5-affad5fe67a0",
+      "name": "Sticky Note: Overview",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -120,
+        -820,
         -420
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 1. Take the invoice\nThe **form** (`/form/send21-invoice`) or the **API webhook** (`POST /webhook/send21-invoice-api`) receives client name, client email, amount, currency and an optional description and invoice number.\n\n**Normalize invoice** checks the fields. Invalid input goes straight to the reply step with an error. Receiving addresses are never taken from the input.",
+        "height": 560,
+        "width": 620,
+        "color": 7
+      },
+      "id": "bafe23ce-1876-5602-bf18-e3cc5743a17a",
+      "name": "Sticky Note: Step 1",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        -200
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 2. Your settings and the request\n**Settings** (edit this node): fill in at least one of your own addresses:\n- `solanaAddress`: USDC + USDT on Solana\n- `baseAddress`: USDC + EURC on Base\n- `lightningAddress`: BTC over Lightning (name@wallet.com)\n\nplus `ownerEmail`, `senderEmail`, `expiryHours` and an optional `declineNote`.\n\nApprove each address yourself in the send21 app first (passkey or authenticator code). An unapproved address returns `422 address_not_approved` and nothing is created.\n\n**Build payment request** turns the invoice and your addresses into the request body.",
+        "height": 640,
+        "width": 640,
+        "color": 5
+      },
+      "id": "7d4bc1a2-8f7d-548e-9881-a5f913e540e6",
+      "name": "Sticky Note: Step 2",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        600,
+        -420
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 3. Create the pay link and email it\n**Create pay link (send21)** calls `POST /api/v1/payment-requests` with `orderId` = invoice number, `reuseOpenForOrder: true` and an `Idempotency-Key`, so a retry returns the same link instead of billing twice.\n\n**Record invoice** saves the invoice in the workflow's static data so the webhook branch can match it later. **Email pay link to client** sends the link over SMTP.",
+        "height": 560,
+        "width": 1110,
+        "color": 7
+      },
+      "id": "8698ecad-173f-55ff-9016-cea756e17644",
+      "name": "Sticky Note: Step 3",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1270,
+        -480
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 4. Reply\nShows the result on the form page, or returns JSON to the API caller: `ok`, `invoiceId`, `payLink`, `paymentRequestId`, `expiresAt`, `emailed`, `message`.\n\nErrors (bad input, no addresses, send21 error) end here too, with a clear message.",
+        "height": 560,
+        "width": 480,
+        "color": 7
+      },
+      "id": "fad8dd73-fbd8-5060-af61-37e07a3a9877",
+      "name": "Sticky Note: Step 4",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2380,
+        -200
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 5. Receive and verify the signed webhook\nsend21 POSTs events to `/webhook/send21-webhook`. Before anything else this branch:\n- reads the **raw body** and computes HMAC-SHA256 over `<timestamp>.<delivery id>.<raw body>` with your webhook secret (*Crypto* credential `send21 webhook secret`, field *Hmac Secret*)\n- compares it with `X-Send21-Signature-V2` in constant time and answers **401** to a missing or wrong signature, or a delivery **older than 5 minutes**\n- **ignores repeats by `X-Send21-Delivery`**: send21 retries up to 8 times with the same id, so deduplicating is the receiver's job\n\nNo environment variables needed, so it also runs on n8n Cloud.",
+        "height": 700,
+        "width": 1220,
+        "color": 6
+      },
+      "id": "0e7e770a-b0d5-55df-83bf-7e4ac8534fa8",
+      "name": "Sticky Note: Step 5",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 6. Update the invoice and notify\n**Apply event to invoice** matches the event to the invoice by `orderId` and pay link id:\n- `draft.confirmed`: marks it **paid** only if amount and currency match; otherwise flags it for review\n- `draft.amount_mismatch`: **not** a payment. You accept or decline the transfer yourself in send21; this workflow never decides\n- `payment_request.expired`: marks it expired and says whether the client opened the link\n\nThen **Receipt to client** (paid) and **Notify me** (everything else that needs your attention).\n\nInvoices and seen delivery ids live in static data, fine for one n8n instance. For queue mode or high volume, move them to a database.",
+        "height": 700,
+        "width": 980,
+        "color": 4
+      },
+      "id": "198c07a1-2b58-5629-9592-747cb02e3251",
+      "name": "Sticky Note: Step 6",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 7. Register the webhook (run once)\n1. Activate the workflow.\n2. In **POST /webhooks (send21)**, replace `https://YOUR-N8N-HOST` with your public n8n URL (HTTPS).\n3. Run **Register webhook (run once)** manually.\n4. Copy `secret` from the output (shown only once) into a *Crypto* credential named `send21 webhook secret` (field *Hmac Secret*) and select it on **HMAC-SHA256 (webhook secret)**.\n\nTest with `POST /api/v1/webhooks/{id}/test`.",
+        "height": 400,
+        "width": 760,
+        "color": 6
+      },
+      "id": "1dba9fcb-43b3-514b-9939-383453afa252",
+      "name": "Sticky Note: Step 7",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -60,
+        1140
       ]
     },
     {
@@ -208,22 +321,6 @@
       "position": [
         660,
         0
-      ]
-    },
-    {
-      "parameters": {
-        "content": "### Settings: your own addresses\nFill in at least one. They must be **your** addresses, approved by you in the send21 app (passkey or authenticator code). An unapproved address returns `422 address_not_approved` and nothing is created. The client can never change them.\n\n- `solanaAddress`: USDC + USDT on Solana\n- `baseAddress`: USDC + EURC on Base\n- `lightningAddress`: BTC over Lightning (name@wallet.com)",
-        "height": 300,
-        "width": 360,
-        "color": 5
-      },
-      "id": "355a4570-e75b-5839-ad9f-1ab8a126a3c6",
-      "name": "Note: settings",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [
-        600,
-        -330
       ]
     },
     {
@@ -465,22 +562,6 @@
       "position": [
         2640,
         200
-      ]
-    },
-    {
-      "parameters": {
-        "content": "## Wait for payment: the signed webhook\nsend21 POSTs `draft.confirmed` when the payment reaches its confirmations. This branch:\n- verifies `X-Send21-Signature-V2` over the raw body and refuses deliveries **older than 5 minutes** (401)\n- **dedupes by `X-Send21-Delivery`**: retries reuse the id, so the same delivery can arrive more than once\n- checks orderId, amount and currency against the invoice before it marks it **paid**\n- `draft.amount_mismatch` is never a payment: you accept or decline it yourself in send21\n\nThe secret lives in a *Crypto* credential named `send21 webhook secret` (field *Hmac Secret*). No environment variables needed.",
-        "height": 330,
-        "width": 620,
-        "color": 4
-      },
-      "id": "7ac63dc5-b28d-5798-b285-32f403030054",
-      "name": "Note: webhook",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [
-        -120,
-        420
       ]
     },
     {
@@ -886,22 +967,6 @@
           "name": "send21 API key"
         }
       }
-    },
-    {
-      "parameters": {
-        "content": "### Register the webhook once\nReplace `https://YOUR-N8N-HOST` in **POST /webhooks** with your public n8n URL (HTTPS, public address), run it once, and copy `secret` from the output into a *Crypto* credential named `send21 webhook secret` (field *Hmac Secret*), then select it on **HMAC-SHA256 (webhook secret)**. The secret is shown only once.",
-        "height": 220,
-        "width": 520,
-        "color": 6
-      },
-      "id": "d4f0f0de-702b-54a4-b11b-72014cd40fd9",
-      "name": "Note: register",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [
-        440,
-        1120
-      ]
     }
   ],
   "connections": {
