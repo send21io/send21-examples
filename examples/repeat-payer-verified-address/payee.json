@@ -1,0 +1,9 @@
+{
+  "id": "design-contractor",
+  "label": "Design contractor",
+  "network": "Solana",
+  "currency": "Usdc",
+  "address": "REPLACE_WITH_THE_PAYEES_RECEIVING_ADDRESS",
+  "fiatCurrency": "EUR",
+  "fiatAmount": 5.00
+}

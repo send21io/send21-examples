@@ -1,0 +1,16 @@
+{
+  "helper": {
+    "label": "Your local helper",
+    "network": "Solana",
+    "currency": "Usdt",
+    "address": "REPLACE_WITH_YOUR_HELPERS_RECEIVING_ADDRESS"
+  },
+  "task": {
+    "id": "delivery-photo-001",
+    "title": "Photo check of today's delivery",
+    "details": "Check that the parcel at the front door is intact and send one photo.",
+    "where": "Front door, building B",
+    "fiatCurrency": "EUR",
+    "fiatAmount": 3.00
+  }
+}
