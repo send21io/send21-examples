@@ -1,5 +1,5 @@
 // A simple script standing in for the agent: the task is reported done, so it asks
-// send21 (over MCP) for a pay link to the helper's pre-approved address. Then it asks
+// send21 (over MCP) for a pay link to the helper's saved address. Then it asks
 // again, the way a retried or repeated agent run would, to show the same open link comes back.
 //   npm run agent
 import { fileURLToPath } from "node:url";
@@ -26,7 +26,7 @@ const say = (s = "") => console.log(s);
 say(`MCP server: ${mcp.url}   key: ${redact(process.env.SEND21_API_KEY)}`);
 say(`\nTask: ${cfg.task.title} (${cfg.task.where})`);
 say(`Helper: ${cfg.helper.label}, ${cfg.task.fiatAmount} ${cfg.task.fiatCurrency} in ${cfg.helper.currency.toUpperCase()} on ${cfg.helper.network}`);
-say(`Pre-approved address (${cfg.fileName}): ${chunk(cfg.helper.address).join(" ")}`);
+say(`Saved helper address (${cfg.fileName}): ${chunk(cfg.helper.address).join(" ")}`);
 say(`\n[helper] task reported done -> agent drafts the payment`);
 
 const first = await draftPaymentForDoneTask(mcp, cfg, { idempotencyKey: `${cfg.orderId}-${randomUUID()}` });
@@ -37,7 +37,7 @@ say(`  id:        ${first.paymentRequest.id}`);
 say(`  orderId:   ${first.paymentRequest.orderId}`);
 say(`  amount:    ${first.paymentRequest.fiatAmount} ${first.paymentRequest.fiatCurrency}, payable in ${first.paymentRequest.option.currency.toUpperCase()} on ${first.paymentRequest.option.network}`);
 say(`  pays to:   ${chunk(first.paymentRequest.option.address).join(" ")}`);
-say(`  check:     ${first.addressCheck.match ? "MATCH, the pay link pays the helper's pre-approved address" : "MISMATCH, do not pay"}`);
+say(`  check:     ${first.addressCheck.match ? (first.approvedInSend21 ? "MATCH, the pay link pays the helper's pre-approved address (verified in send21)" : "MATCH, the pay link pays the helper address you saved (not in the send21 address book)") : "MISMATCH, do not pay"}`);
 
 say(`\n[helper] reports done again (a repeated request, new Idempotency-Key)`);
 const again = await draftPaymentForDoneTask(mcp, cfg, { idempotencyKey: `${cfg.orderId}-${randomUUID()}` });

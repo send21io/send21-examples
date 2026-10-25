@@ -27,6 +27,8 @@ function stepper(at) {
 }
 
 let v;
+// Honest wording: "pre-approved" only for an owner-verified send21 address book entry.
+const approved = () => Boolean(v?.helper?.approvedInSend21);
 async function start() {
   try { v = await api("/api/task"); render(); if (v.phase === "awaiting_signature") poll(); }
   catch (e) { app.innerHTML = `<h1>Something is not set up yet</h1><p class="error">${esc(e.message)}</p>`; }
@@ -52,9 +54,9 @@ function renderTask() {
           <div class="row"><dt>Helper</dt><dd>${esc(helper.label)}</dd></div>
           <div class="row"><dt>Agreed amount</dt><dd>${esc(money(task.fiatAmount, task.fiatCurrency))} · ${esc(helper.currency.toUpperCase())} on ${esc(helper.network)}</dd></div>
         </dl>
-        <div class="addr-label"><h2 style="margin:0">Helper's receiving address</h2><span>Pre-approved by you</span></div>
-        ${addrGrid(helper.chunks, "Helper's pre-approved receiving address")}
-        <p class="source">${ICON.shield}<span>Saved once from what your helper gave you (${esc(helper.source)}). Your agent cannot change it.</span></p>
+        <div class="addr-label"><h2 style="margin:0">Helper's receiving address</h2><span>${approved() ? "Pre-approved in send21" : "Saved by you"}</span></div>
+        ${addrGrid(helper.chunks, approved() ? "Helper's pre-approved receiving address" : "Helper's saved receiving address")}
+        <p class="source">${ICON.shield}<span>${approved() ? "Approved by you in your send21 address book. Your agent cannot change it." : `Saved once from what your helper gave you (${esc(helper.source)}), not in your send21 address book. Your agent cannot change it.`}</span></p>
         <div class="actions">
           <button class="btn btn-primary" id="done">Task done</button>
           <p class="fine">Your agent drafts the payment. Nothing moves until you sign.</p>
@@ -70,7 +72,7 @@ async function done(ev) {
     <section class="fade-in">
       <p class="eyebrow">Task done</p>
       <h1>Your agent is drafting the payment</h1>
-      <p class="lede">It asks send21 for a pay link to your helper's pre-approved address. It cannot sign or pay.</p>
+      <p class="lede">It asks send21 for a pay link to ${approved() ? "your helper's pre-approved address" : "the helper address you saved"}. It cannot sign or pay.</p>
       <div class="card"><div class="working"><span class="spinner" aria-hidden="true"></span><span>Calling the send21 MCP server…</span></div></div>
     </section>`;
   focusHeading();
@@ -105,7 +107,7 @@ function renderReview() {
       <h1>${isPaid ? "Paid" : "Review and sign"}</h1>
       <p class="lede">${isPaid ? `${esc(helper.label)} has been paid for the task.` : "Your agent drafted this payment. Check it, then open the pay link and sign in your own wallet."}</p>
       ${match
-        ? `<div class="banner ok" role="status"><span class="icon">${ICON.check}</span><div><strong>Pays your helper's pre-approved address</strong><p>All ${helper.address.length} characters match the address you saved.</p></div></div>`
+        ? `<div class="banner ok" role="status"><span class="icon">${ICON.check}</span><div><strong>${approved() ? "Pays your helper's pre-approved address" : "Matches the helper address you saved"}</strong><p>All ${helper.address.length} characters match ${approved() ? "the address you approved in send21" : "the address you saved"}.</p></div></div>`
         : `<div class="banner bad" role="alert"><span class="icon">${ICON.stop}</span><div><strong>Stop. This link does not pay your helper's address.</strong><p>Do not sign. Check the helper record first.</p></div></div>`}
       ${stepper(isPaid ? 3 : 1)}
       <article class="card">
@@ -114,7 +116,7 @@ function renderReview() {
           <div><div class="meta">Pay ${esc(helper.label.toLowerCase())}</div><div class="amount">${esc(money(pr.fiatAmount, pr.fiatCurrency))}<small>in ${esc(pr.option.currency.toUpperCase())} on ${esc(pr.option.network)} · ${esc(task.title)}</small></div></div>
           <div class="chips"><span class="status-chip ${isPaid ? "ok" : ""}">${isPaid ? "Paid" : "Waiting for your signature"}</span></div>
         </div>
-        <div class="addr-label"><h2 style="margin:0">Pays to</h2><span>${match ? "Matches pre-approved address" : "Does not match"}</span></div>
+        <div class="addr-label"><h2 style="margin:0">Pays to</h2><span>${match ? (approved() ? "Matches pre-approved address" : "Matches your saved address") : "Does not match"}</span></div>
         ${addrGrid(chunk(pr.option.address), "Address in this pay link")}
         ${isPaid ? (paid?.txId ? `<dl class="rows" style="margin-top:18px"><div class="row"><dt>Transaction</dt><dd class="mono">${esc(paid.txId)}</dd></div></dl>` : "") : `
         <div class="actions"><a class="btn btn-primary btn-block" href="${esc(review.payUrl)}" target="_blank" rel="noopener">Open pay link to sign in your wallet ${ICON.ext}</a></div>

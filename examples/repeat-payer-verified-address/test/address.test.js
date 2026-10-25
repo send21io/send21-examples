@@ -35,3 +35,19 @@ test("webhook V2 signature: valid, tampered and stale", () => {
   const old = signV2({ rawBody, deliveryId: "d1", secret: "s", t: Math.floor(Date.now() / 1000) - 600 });
   assert.equal(verifyV2({ rawBody, signatureHeader: old, deliveryId: "d1", secret: "s" }), false);
 });
+
+test("an expired price lock within the draft's life is re-quoted, not duplicated", async () => {
+  const { createMonthlyDraft } = await import("../lib/monthly.js");
+  const future = new Date(Date.now() + 3600e3).toISOString();
+  const calls = [];
+  const base = { id: "d1", receiverAddress: approved, paymentUri: `solana:${approved}?amount=1`, expiresAt: future };
+  const api = {
+    async post(path) { calls.push(path); return path.endsWith("/requote") ? { ...base, status: "AwaitingPayment" } : { ...base, status: "Expired" }; },
+    async get() { return { outputs: [{ address: approved }] }; },
+  };
+  const payee = { id: "p", label: "P", network: "Solana", currency: "Usdc", address: approved, fiatCurrency: "EUR", fiatAmount: 1 };
+  const r = await createMonthlyDraft(api, payee, { month: "2026-10" });
+  assert.deepEqual(calls, ["/drafts", "/drafts/d1/requote"]);
+  assert.equal(r.requoted, true);
+  assert.equal(r.draft.status, "AwaitingPayment");
+});

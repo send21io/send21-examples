@@ -1,6 +1,6 @@
 # Agent hires a local helper
 
-You run your own agent. It asks a local helper you already know and trust for a small physical task, for example a photo check of a delivery. When the task is reported done, the agent asks [send21](https://send21.io/) for a pay link to the helper's pre-approved receiving address. You review it and sign in your own wallet.
+You run your own agent. It asks a local helper you already know and trust for a small physical task, for example a photo check of a delivery. When the task is reported done, the agent asks [send21](https://send21.io/) for a pay link to the helper's saved receiving address. You review it and sign in your own wallet.
 
 **send21 drafts the payment and a human signs it, nothing more.** There is no escrow, no dispute handling and no check of the work itself. This is a self-built setup for paying your own trusted helpers; it does not find helpers for you.
 
@@ -10,7 +10,7 @@ send21: crypto pay links and API for people and AI agents. The agent's key can c
 
 | 1. Task card | 2. Owner review | 3. Paid |
 |---|---|---|
-| The task, where, the agreed amount, and the helper's receiving address in groups of four. One button: **Task done**. | **Pays your helper's pre-approved address**, the amount, the full address, what the agent did, and one button: **Open pay link to sign in your wallet**. | After the signed `draft.confirmed` webhook (or the pay link turning `Completed`). |
+| The task, where, the agreed amount, and the helper's receiving address in groups of four. One button: **Task done**. | **Matches the helper address you saved** (or **Pays your helper's pre-approved address** when it is an owner-verified entry in your send21 address book), the amount, the full address, what the agent did, and one button: **Open pay link to sign in your wallet**. | After the signed `draft.confirmed` webhook (or the pay link turning `Completed`). |
 
 The steps read *Draft created → Waiting for your signature → Paid*.
 

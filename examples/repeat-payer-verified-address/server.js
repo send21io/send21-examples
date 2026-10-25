@@ -48,7 +48,8 @@ const server = http.createServer(async (req, res) => {
       const r = await createMonthlyDraft(api, payee);
       const qr = r.draft.paymentUri ? await QRCode.toString(r.draft.paymentUri, { type: "svg", margin: 1, color: { dark: "#1B1C20", light: "#FFFFFF" } }) : null;
       return json(res, 201, {
-        draft: { id: r.draft.id, status: r.draft.status, network: r.draft.network, currency: r.draft.currency, fiatCurrency: r.draft.fiatCurrency, fiatAmount: r.draft.fiatAmount, amountBaseUnits: r.draft.amountBaseUnits, receiverAddress: r.draft.receiverAddress, paymentUri: r.draft.paymentUri, expiresAt: r.draft.expiresAt, memo: r.draft.memo },
+        draft: { id: r.draft.id, status: r.draft.status, network: r.draft.network, currency: r.draft.currency, fiatCurrency: r.draft.fiatCurrency, fiatAmount: r.draft.fiatAmount, amountBaseUnits: r.draft.amountBaseUnits, receiverAddress: r.draft.receiverAddress, paymentUri: r.draft.paymentUri, expiresAt: r.draft.expiresAt, lockedUntil: r.draft.quote?.lockedUntil ?? r.draft.quote?.expiresAt ?? null, memo: r.draft.memo },
+        requoted: r.requoted,
         checks: r.checks, idempotencyKey: r.idempotencyKey, qr,
       });
     }

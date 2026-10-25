@@ -24,7 +24,7 @@ function focusHeading() { app.querySelector("h1")?.setAttribute("tabindex", "-1"
 
 function stepper(state) {
   const steps = [
-    ["created", "Draft created", "From your approved payee"],
+    ["created", "Draft created", `From your ${kind()}`],
     ["waiting", "Waiting for your signature", "In your own wallet"],
     ["paid", "Paid", "Confirmed on-chain"],
   ];
@@ -36,6 +36,9 @@ function stepper(state) {
 }
 
 let payee, approval;
+// Honest wording: "approved" only for an owner-verified send21 address book entry.
+const kind = () => (approval?.verified ? "approved payee" : "saved payee");
+const Kind = () => (approval?.verified ? "Approved payee" : "Saved payee");
 
 async function start() {
   try {
@@ -47,7 +50,7 @@ async function start() {
 function sourceLine() {
   return approval.verified
     ? `${ICON.shield}<span><b>Verified in your send21 address book</b> on ${new Date(approval.verifiedAt).toLocaleDateString("en", { dateStyle: "medium" })}. Every payment uses this record.</span>`
-    : `${ICON.shield}<span><b>Approved by you, saved in this app's payee file.</b> ${esc(approval.note)}</span>`;
+    : `${ICON.shield}<span><b>Saved by you in this app's payee file, not verified in send21.</b> ${esc(approval.note)}</span>`;
 }
 
 function renderPayee() {
@@ -56,11 +59,11 @@ function renderPayee() {
     <section class="fade-in">
       <p class="eyebrow">Monthly payment · ${esc(month)}</p>
       <h1>Pay ${esc(payee.label.toLowerCase())}</h1>
-      <p class="lede">Same payee every month. The address comes from the record you approved once, never from your wallet history.</p>
+      <p class="lede">Same payee every month. ${approval.verified ? "The address comes from the payee you approved in your send21 address book" : "The address comes from the payee record you saved once"}, never from your wallet history.</p>
       <article class="card" aria-labelledby="payee-name">
         <div class="card-head">
           <div class="avatar" aria-hidden="true">${esc(initials(payee.label))}</div>
-          <div><div class="who" id="payee-name">${esc(payee.label)}</div><div class="meta">Approved payee</div></div>
+          <div><div class="who" id="payee-name">${esc(payee.label)}</div><div class="meta">${Kind()}</div></div>
           <div class="chips"><span class="chip">${esc(asset(payee))}</span><span class="chip">${esc(money(payee.fiatAmount, payee.fiatCurrency))} / month</span></div>
         </div>
         <div class="addr-label"><h2 style="margin:0">Receiving address</h2><span>${payee.address.length} characters</span></div>
@@ -95,8 +98,8 @@ function renderDraft(r, state, paid) {
   const amountAsset = (d.amountBaseUnits / 1e6).toFixed(2);
   const where = c.checks.map((x) => x.where === "draft.receiverAddress" ? "the draft" : x.where.startsWith("tx-template") ? "the wallet instructions" : "the QR link").join(", ").replace(/, ([^,]*)$/, " and $1");
   const banner = c.allMatch
-    ? `<div class="banner ok" role="status"><span class="icon">${ICON.check}</span><div><strong>Address matches your approved payee</strong><p>All ${payee.address.length} characters match in ${where}.</p></div></div>`
-    : `<div class="banner bad" role="alert"><span class="icon">${ICON.stop}</span><div><strong>Stop. The address does not match your approved payee.</strong><p>Do not pay this draft. Check your payee record first.</p></div></div>`;
+    ? `<div class="banner ok" role="status"><span class="icon">${ICON.check}</span><div><strong>Address matches your ${kind()}</strong><p>All ${payee.address.length} characters match in ${where}.</p></div></div>`
+    : `<div class="banner bad" role="alert"><span class="icon">${ICON.stop}</span><div><strong>Stop. The address does not match your ${kind()}.</strong><p>Do not pay this draft. Check your payee record first.</p></div></div>`;
   const heading = state === "paid" ? "Paid" : "Waiting for your signature";
   const lede = state === "paid"
     ? `${esc(payee.label)} has been paid for this month.`
@@ -120,11 +123,11 @@ function renderDraft(r, state, paid) {
               <p class="fine" style="margin-top:12px">Or scan the QR code with your phone wallet.</p>
             </div>
           </div>`}
-        <div class="addr-label"><h2 style="margin:0">Paying to</h2><span>${c.allMatch ? "Matches approved payee" : "Does not match"}</span></div>
+        <div class="addr-label"><h2 style="margin:0">Paying to</h2><span>${c.allMatch ? `Matches ${kind()}` : "Does not match"}</span></div>
         ${addrGrid(d.receiverAddress, "Receiving address in this draft")}
       </article>
       ${state !== "paid" ? `<div class="note" style="margin-top:20px">${ICON.eye}<div>Your wallet shows the full address before you sign. Compare it with the one above, group by group. If anything differs, stop.</div></div>` : ""}
-      <dl class="rows" style="margin-top:24px"><div class="row"><dt>Draft</dt><dd class="mono">${esc(d.id)}</dd></div><div class="row"><dt>Expires</dt><dd>${esc(new Date(d.expiresAt).toLocaleString("en", { dateStyle: "medium", timeStyle: "short" }))}</dd></div></dl>
+      <dl class="rows" style="margin-top:24px"><div class="row"><dt>Draft</dt><dd class="mono">${esc(d.id)}</dd></div>${d.lockedUntil ? `<div class="row"><dt>Price locked until</dt><dd>${esc(new Date(d.lockedUntil).toLocaleTimeString("en", { timeStyle: "short" }))}</dd></div>` : ""}<div class="row"><dt>Expires</dt><dd>${esc(new Date(d.expiresAt).toLocaleString("en", { dateStyle: "medium", timeStyle: "short" }))}</dd></div></dl>
     </section>`;
   focusHeading();
 }

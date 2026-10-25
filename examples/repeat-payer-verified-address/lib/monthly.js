@@ -23,12 +23,19 @@ export function draftBody(payee, month) {
 export async function createMonthlyDraft(api, payee, { month = monthKey() } = {}) {
   // Same key for the same payee and month: a double click or a retry returns the same draft.
   const idempotencyKey = `monthly-${payee.id}-${month}`;
-  const draft = await api.post("/drafts", draftBody(payee, month), { idempotencyKey });
+  let draft = await api.post("/drafts", draftBody(payee, month), { idempotencyKey });
+  // A fiat price is locked for 15 minutes (a quote). If this month's draft is still within its
+  // life but the lock ran out, re-quote it (POST /drafts/{id}/requote) instead of making a twin.
+  let requoted = false;
+  if (draft.status === "Expired" && new Date(draft.expiresAt) > new Date()) {
+    draft = await api.post(`/drafts/${draft.id}/requote`);
+    requoted = true;
+  }
   if (draft.status === "Cancelled" || draft.status === "Expired") {
     throw new Error(`This month's draft (${draft.id}) is ${draft.status.toLowerCase()}. Set PAYMENT_MONTH (for example ${nextMonth(month)}) to prepare a new one.`);
   }
   const template = await api.get(`/drafts/${draft.id}/tx-template`);
-  return { idempotencyKey, draft, template, checks: addressChecks(payee.address, draft, template) };
+  return { idempotencyKey, draft, requoted, template, checks: addressChecks(payee.address, draft, template) };
 }
 
 // The address must match exactly in the draft, in the wallet instructions and in the QR link.

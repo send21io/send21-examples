@@ -25,14 +25,26 @@ const TYPES = { ".html": "text/html; charset=utf-8", ".css": "text/css", ".js": 
 const json = (res, status, body) => { res.writeHead(status, { "Content-Type": "application/json", "Cache-Control": "no-store" }); res.end(JSON.stringify(body)); };
 const readBody = (req) => new Promise((ok, fail) => { const p = []; req.on("data", (c) => p.push(c)); req.on("end", () => ok(Buffer.concat(p))); req.on("error", fail); });
 
+// Is the helper's address an owner-verified entry in the send21 address book?
+// Only then does the UI say "pre-approved". Otherwise it says "the address you saved".
+let helperApproved = null;
+async function lookupHelperApproval() {
+  try {
+    const book = await mcp.callTool("list_address_book");
+    helperApproved = Boolean((book ?? []).find((e) => e.address === cfg.helper.address && e.network === cfg.helper.network)?.verifiedAt);
+  } catch { helperApproved = false; }
+  return helperApproved;
+}
+
 function view() {
-  return { task: cfg.task, helper: { ...cfg.helper, chunks: chunk(cfg.helper.address), source: cfg.fileName }, orderId: cfg.orderId, ...state };
+  const approved = state.review ? Boolean(state.review.approvedInSend21) : Boolean(helperApproved);
+  return { task: cfg.task, helper: { ...cfg.helper, chunks: chunk(cfg.helper.address), source: cfg.fileName, approvedInSend21: approved }, orderId: cfg.orderId, ...state };
 }
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, "http://localhost");
   try {
-    if (req.method === "GET" && url.pathname === "/api/task") return json(res, 200, view());
+    if (req.method === "GET" && url.pathname === "/api/task") { if (helperApproved === null) await lookupHelperApproval(); return json(res, 200, view()); }
 
     if (req.method === "POST" && url.pathname === "/api/task/done") {
       // The helper reported the task done. The agent drafts the payment.

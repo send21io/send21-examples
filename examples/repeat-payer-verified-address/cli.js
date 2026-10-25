@@ -30,10 +30,12 @@ if (args[0] === "--pause-template") {
 }
 
 const payee = loadPayee(dir);
-line(`\n1) Approved payee (stored once, in ${payee.file.split("/").pop()})`);
+const approval = await resolveApproval(api, payee);
+// "approved" only for an owner-verified send21 address book entry; otherwise "saved".
+const kind = approval.verified ? "approved payee" : "saved payee";
+line(`\n1) ${approval.verified ? "Approved" : "Saved"} payee (stored once, in ${payee.fileName})`);
 line(`   ${payee.label}: ${payee.currency.toUpperCase()} on ${payee.network}, ${payee.fiatAmount} ${payee.fiatCurrency} a month`);
 line(`   address: ${chunk(payee.address).join(" ")}`);
-const approval = await resolveApproval(api, payee);
 line(`   source:  ${approval.source}${approval.verified ? ` (verified ${approval.verifiedAt})` : ""}`);
 line(`   note:    ${approval.note}`);
 
@@ -42,23 +44,24 @@ if (args.includes("--schedule")) {
   line(`\n2) Monthly recurring template (POST /recurring-templates)`);
   line(`   ${t.reused ? "reused existing" : "created"} template ${t.template.id}, interval ${t.template.interval}, next run ${t.template.nextRunAt}, active ${t.template.isActive}`);
   line(`   template receiver: ${chunk(t.template.draft?.receiverAddress ?? "").join(" ")}`);
-  line(`   check: ${ok(t.check.match)} with the approved payee`);
+  line(`   check: ${ok(t.check.match)} with the ${kind}`);
 }
 
 line(`\n${args.includes("--schedule") ? "3" : "2"}) This month's draft (POST /drafts, Idempotency-Key per payee and month)`);
 const r = await createMonthlyDraft(api, payee);
 line(`   Idempotency-Key: ${r.idempotencyKey}`);
 line(`   draft ${r.draft.id}  status ${r.draft.status}  ${r.draft.fiatAmount} ${r.draft.fiatCurrency} = ${(r.draft.amountBaseUnits / 1e6).toFixed(6)} ${r.draft.currency?.toUpperCase()} on ${r.draft.network}`);
-line(`   expires ${r.draft.expiresAt}`);
+if (r.requoted) line(`   price lock had run out: re-quoted (POST /drafts/{id}/requote), same draft`);
+line(`   price locked until ${r.draft.quote?.lockedUntil ?? r.draft.quote?.expiresAt ?? "n/a"}; draft expires ${r.draft.expiresAt}`);
 line(`   paymentUri: ${r.draft.paymentUri}`);
 
 line(`\n   Full address check (exact, every character):`);
-line(`   approved               ${chunk(payee.address).join(" ")}`);
+line(`   ${(approval.verified ? "approved" : "saved").padEnd(22)} ${chunk(payee.address).join(" ")}`);
 for (const c of r.checks.checks) line(`   ${c.where.padEnd(22)} ${chunk(c.value ?? "").join(" ")}   ${ok(c.match)}`);
 line(r.checks.allMatch
-  ? `\n   ✔ Address matches your approved payee (${payee.address.length} of ${payee.address.length} characters).`
-  : `\n   ✖ STOP: an address does not match the approved payee. Do not pay this draft.`);
+  ? `\n   ✔ Address matches your ${kind} (${payee.address.length} of ${payee.address.length} characters).`
+  : `\n   ✖ STOP: an address does not match the ${kind}. Do not pay this draft.`);
 line(`\n   Next: open the paymentUri or scan the QR in your own wallet. Your wallet shows the full address;`);
-line(`   compare it with the approved one before you sign. send21 never signs and never broadcasts.`);
+line(`   compare it with the ${approval.verified ? "approved" : "saved"} one before you sign. send21 never signs and never broadcasts.`);
 const s = await api.get(`/drafts/${r.draft.id}/status`);
 line(`\n   GET /drafts/${s.id}/status -> ${s.status}`);

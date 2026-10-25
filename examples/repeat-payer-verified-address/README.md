@@ -10,11 +10,11 @@ send21: crypto pay links and API for people and AI agents. send21 prepares the p
 
 ## What you see
 
-| 1. The approved payee | 2. This month's draft, address checked |
+| 1. The payee | 2. This month's draft, address checked |
 |---|---|
-| Full address in groups of four, the asset and network, the monthly amount, and where the approval comes from. One button: **Create this month's payment**. | **Address matches your approved payee**: every character checked in the draft, in the wallet instructions (`tx-template`) and in the QR link. Then a QR code and **Open in your wallet**. The steps read *Draft created → Waiting for your signature → Paid*. |
+| Full address in groups of four, the asset and network, the monthly amount, and where the approval comes from. One button: **Create this month's payment**. | **Address matches your saved payee** (or **your approved payee** when the address is an owner-verified entry in your send21 address book): every character checked in the draft, in the wallet instructions (`tx-template`) and in the QR link. Then a QR code and **Open in your wallet**. The steps read *Draft created → Waiting for your signature → Paid*. |
 
-<p><img src="docs/1-approved-payee-desktop.png" alt="The approved payee with the full address in groups of four" width="49%"> <img src="docs/2-address-match-waiting-for-signature-desktop.png" alt="Address matches your approved payee, waiting for your signature" width="49%"></p>
+<p><img src="docs/1-approved-payee-desktop.png" alt="The saved payee with the full address in groups of four" width="49%"> <img src="docs/2-address-match-waiting-for-signature-desktop.png" alt="Address matches your saved payee, waiting for your signature" width="49%"></p>
 
 ## Where the approved address is stored
 
@@ -23,8 +23,8 @@ send21 has an address book (`GET /api/v1/address-book`, scope `addressbook:read`
 This example:
 
 1. Reads the payee from `payee.json` (label, network, currency, address, monthly amount).
-2. Looks the address up in your send21 address book. If it is there and verified, the UI says **Verified in your send21 address book**.
-3. If it is not there, or the key has no `addressbook:read` scope, it says so plainly and uses `payee.json`, the file you reviewed and saved yourself. That file is a local config, not a send21 approval.
+2. Looks the address up in your send21 address book. If it is there and verified, the UI says **Verified in your send21 address book** and calls it your *approved payee*.
+3. If it is not there, or the key has no `addressbook:read` scope, it says so plainly, uses `payee.json` (the file you reviewed and saved yourself) and calls it your *saved payee*. That file is a local config, not a send21 approval.
 
 Either way, every draft takes the address from that one stored record, never from a paste.
 
@@ -33,6 +33,7 @@ Either way, every draft takes the address from that one stored record, never fro
 - **This month's draft:** `POST /api/v1/drafts` with `receiverAddress` from the payee record, `paymentMethod: "MultiOutput"`, `singleOutput: true` (one QR payment from any wallet), and the price in your currency (`fiatCurrency`, `fiatAmount`). The `Idempotency-Key` is `monthly-<payee id>-<YYYY-MM>`, so a double click or a retry returns the same draft instead of a second one.
 - **Address check:** the example compares the approved address, character for character, with `receiverAddress` in the draft, the output in `GET /api/v1/drafts/{id}/tx-template`, and the address in the `paymentUri` (Solana Pay or EIP-681). No first-4/last-4 shortcut: lookalikes are built to pass that.
 - **Every month on its own (optional):** `npm run monthly -- --schedule` sets up a recurring template with `POST /api/v1/recurring-templates` and `interval: "Monthly"`. send21 then creates the draft each month from the stored address. The payer still signs each one.
+- **Price lock:** a fiat price is locked for 15 minutes. If this month's draft is still within its life but the lock ran out, the example re-quotes it (`POST /api/v1/drafts/{id}/requote`) instead of creating a second draft.
 - **Status:** the UI polls `GET /api/v1/drafts/{id}/status`. With a webhook endpoint, a signed `draft.confirmed` (checked with `X-Send21-Signature-V2`) marks it paid.
 
 Supported here: USDC on Solana, Ethereum, Base, Arbitrum or Polygon; USDT on Solana or Ethereum; EURC on Solana, Ethereum or Base. USDT is not on Base.
@@ -75,7 +76,7 @@ Set `LOCAL_TEST_WEBHOOK_SECRET` in `.env`, start the server, create the draft, t
 
 | File | What it is |
 |---|---|
-| `payee.json` | The one approved payee record |
+| `payee.json` | The one payee record |
 | `lib/payee.js` | Loads the payee and checks the send21 address book |
 | `lib/monthly.js` | Creates this month's draft, the full-address checks, the recurring template |
 | `lib/webhook.js` | `X-Send21-Signature-V2` check |
