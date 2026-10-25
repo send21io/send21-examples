@@ -6,6 +6,7 @@ const ICON = {
   shield: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6l7-3z"/><path d="M9 12l2 2 4-4"/></svg>',
   eye: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
   ext: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6"/><path d="M20 4l-9 9"/><path d="M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"/></svg>',
+  wallet: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="3"/><path d="M16 12.5h2"/><path d="M3 9h18"/></svg>',
   camera: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>',
 };
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -72,8 +73,8 @@ async function done(ev) {
     <section class="fade-in">
       <p class="eyebrow">Task done</p>
       <h1>Your agent is drafting the payment</h1>
-      <p class="lede">It asks send21 for a pay link to ${approved() ? "your helper's pre-approved address" : "the helper address you saved"}. It cannot sign or pay.</p>
-      <div class="card"><div class="working"><span class="spinner" aria-hidden="true"></span><span>Calling the send21 MCP server…</span></div></div>
+      <p class="lede">It asks send21 for a payment draft to ${approved() ? "your helper's pre-approved address" : "the helper address you saved"}. It cannot sign or pay.</p>
+      <div class="card"><div class="working"><span class="spinner" aria-hidden="true"></span><span>Checking the address rules and creating the draft…</span></div></div>
     </section>`;
   focusHeading();
   const started = Date.now();
@@ -91,40 +92,50 @@ function agentLog(steps, reused) {
   const words = {
     get_account_status: "Checked your account's address rules",
     list_address_book: "Looked up the helper's address in your send21 address book",
-    create_payment_request: "Created the pay link with <code>orderId</code> and <code>reuseOpenForOrder: true</code>",
+    "POST /drafts": "Created the payment draft with an <code>Idempotency-Key</code> from the task id",
+    "POST /drafts/{id}/requote": "Renewed the 15-minute price lock",
   };
-  return `<ol class="agent-log">${steps.map((s) => `<li><span class="dot">${ICON.small}</span><span><b style="color:var(--ink)">${words[s.tool] ?? s.tool}</b><br><code>${esc(s.tool)}</code> ${esc(s.result)}</span></li>`).join("")}${reused ? `<li><span class="dot">${ICON.small}</span><span><b style="color:var(--ink)">Asked again, got the same open link</b><br>A repeated request returns this link instead of a second one.</span></li>` : ""}</ol>`;
+  return `<ol class="agent-log">${steps.map((s) => `<li><span class="dot">${ICON.small}</span><span><b style="color:var(--ink)">${words[s.tool] ?? s.tool}</b><br><code>${esc(s.tool)}</code> ${esc(s.result)}</span></li>`).join("")}${reused ? `<li><span class="dot">${ICON.small}</span><span><b style="color:var(--ink)">Asked again, got the same draft</b><br>The same Idempotency-Key returns this draft instead of a second one.</span></li>` : ""}</ol>`;
 }
 
 function renderReview() {
   const { task, helper, review, phase, paid } = v;
-  const pr = review.paymentRequest;
+  const d = review.draft;
   const isPaid = phase === "paid";
   const match = review.addressCheck.match;
+  const assetAmount = (d.amountBaseUnits / 1e6).toFixed(2);
   app.innerHTML = `
     <section class="fade-in">
       <p class="eyebrow">${isPaid ? "Done" : "Owner review"} · ${esc(task.title)}</p>
       <h1>${isPaid ? "Paid" : "Review and sign"}</h1>
-      <p class="lede">${isPaid ? `${esc(helper.label)} has been paid for the task.` : "Your agent drafted this payment. Check it, then open the pay link and sign in your own wallet."}</p>
+      <p class="lede">${isPaid ? `${esc(helper.label)} has been paid for the task.` : "Your agent drafted this payment. Check it, then open it in your own wallet and sign."}</p>
       ${match
         ? `<div class="banner ok" role="status"><span class="icon">${ICON.check}</span><div><strong>${approved() ? "Pays your helper's pre-approved address" : "Matches the helper address you saved"}</strong><p>All ${helper.address.length} characters match ${approved() ? "the address you approved in send21" : "the address you saved"}.</p></div></div>`
-        : `<div class="banner bad" role="alert"><span class="icon">${ICON.stop}</span><div><strong>Stop. This link does not pay your helper's address.</strong><p>Do not sign. Check the helper record first.</p></div></div>`}
+        : `<div class="banner bad" role="alert"><span class="icon">${ICON.stop}</span><div><strong>Stop. This draft does not pay your helper's address.</strong><p>Do not sign. Check the helper record first.</p></div></div>`}
       ${stepper(isPaid ? 3 : 1)}
       <article class="card">
         ${isPaid ? `<div class="banner ok" style="margin:0 0 18px"><span class="icon">${ICON.check}</span><div><strong>Paid${paid?.localTest ? '<span class="pill-local">Local test webhook</span>' : ""}</strong><p>${paid?.localTest ? "Shown from a locally signed test delivery, not a real payment." : "Confirmed on-chain."}${paid?.confirmedAt ? " At " + esc(new Date(paid.confirmedAt).toLocaleString("en")) + "." : ""}</p></div></div>` : ""}
-        <div class="card-head" style="margin-bottom:14px">
-          <div><div class="meta">Pay ${esc(helper.label.toLowerCase())}</div><div class="amount">${esc(money(pr.fiatAmount, pr.fiatCurrency))}<small>in ${esc(pr.option.currency.toUpperCase())} on ${esc(pr.option.network)} · ${esc(task.title)}</small></div></div>
-          <div class="chips"><span class="status-chip ${isPaid ? "ok" : ""}">${isPaid ? "Paid" : "Waiting for your signature"}</span></div>
+        <div class="${isPaid ? "" : "pay"}">
+          ${!isPaid && review.qr ? `<div class="qr" role="img" aria-label="QR code for this payment">${review.qr}</div>` : ""}
+          <div>
+            <div class="meta">Pay ${esc(helper.label.toLowerCase())}</div>
+            <div class="amount">${esc(money(d.fiatAmount, d.fiatCurrency))}<small>${esc(assetAmount)} ${esc(d.currency.toUpperCase())} on ${esc(d.network)} · ${esc(task.title)}</small></div>
+            ${isPaid ? "" : `<div class="actions" style="margin-top:20px"><a class="btn btn-primary" href="${esc(d.paymentUri)}">${ICON.wallet} Open the payment to sign in your wallet</a></div>
+            <p class="fine" style="margin-top:12px">Or scan the QR code with your phone wallet. send21 never signs.</p>`}
+          </div>
         </div>
         <div class="addr-label"><h2 style="margin:0">Pays to</h2><span>${match ? (approved() ? "Matches pre-approved address" : "Matches your saved address") : "Does not match"}</span></div>
-        ${addrGrid(chunk(pr.option.address), "Address in this pay link")}
-        ${isPaid ? (paid?.txId ? `<dl class="rows" style="margin-top:18px"><div class="row"><dt>Transaction</dt><dd class="mono">${esc(paid.txId)}</dd></div></dl>` : "") : `
-        <div class="actions"><a class="btn btn-primary btn-block" href="${esc(review.payUrl)}" target="_blank" rel="noopener">Open pay link to sign in your wallet ${ICON.ext}</a></div>
-        <p class="fine" style="margin-top:12px;text-align:center">Opens the send21 pay page. You pick the wallet; send21 never signs.</p>`}
+        ${addrGrid(chunk(d.receiverAddress), "Address in this draft")}
+        ${isPaid && paid?.txId ? `<dl class="rows" style="margin-top:18px"><div class="row"><dt>Transaction</dt><dd class="mono">${esc(paid.txId)}</dd></div></dl>` : ""}
       </article>
       ${isPaid ? "" : `<div class="note" style="margin-top:20px">${ICON.eye}<div>Your wallet shows the full address before you sign. Compare it with the one above. If anything differs, stop.</div></div>`}
       <details class="how" ${isPaid ? "" : "open"}><summary>What your agent did</summary>${agentLog(review.steps, review.reused)}</details>
-      <dl class="rows" style="margin-top:24px"><div class="row"><dt>Pay link</dt><dd class="mono">${esc(pr.id)}</dd></div><div class="row"><dt>Order id</dt><dd class="mono">${esc(pr.orderId)}</dd></div></dl>
+      <dl class="rows" style="margin-top:24px">
+        <div class="row"><dt>Draft</dt><dd class="mono">${esc(d.id)}</dd></div>
+        <div class="row"><dt>Idempotency-Key</dt><dd class="mono">${esc(v.idempotencyKey)}</dd></div>
+        ${!isPaid && d.lockedUntil ? `<div class="row"><dt>Price locked until</dt><dd>${esc(new Date(d.lockedUntil).toLocaleTimeString("en", { timeStyle: "short" }))}</dd></div>` : ""}
+        <div class="row"><dt>Expires</dt><dd>${esc(new Date(d.expiresAt).toLocaleString("en", { dateStyle: "medium", timeStyle: "short" }))}</dd></div>
+      </dl>
       <div class="limits"><p>send21 drafts the payment and you sign it, nothing more. There is no escrow, no dispute handling and no check of the work itself: pay helpers you know and trust.</p></div>
     </section>`;
   focusHeading();

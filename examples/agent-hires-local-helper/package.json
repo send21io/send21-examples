@@ -2,7 +2,7 @@
   "name": "send21-agent-hires-local-helper",
   "private": true,
   "version": "0.1.0",
-  "description": "An agent asks send21 for a pay link to a trusted helper's pre-approved address when a task is done. The owner reviews and signs in their own wallet.",
+  "description": "An agent drafts a payment to a trusted helper's saved address when a task is done. The owner reviews and signs in their own wallet.",
   "type": "module",
   "license": "MIT",
   "engines": {
@@ -13,5 +13,8 @@
     "agent": "node agent-cli.js",
     "local-paid": "node local-paid.js",
     "test": "node --test test/"
+  },
+  "dependencies": {
+    "qrcode": "^1.5.4"
   }
 }

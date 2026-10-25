@@ -4,10 +4,11 @@ import http from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { randomUUID } from "node:crypto";
+import QRCode from "qrcode";
 import { loadEnv } from "./lib/env.js";
 import { mcpClient } from "./lib/mcp.js";
-import { loadConfig, draftPaymentForDoneTask, readPaymentStatus } from "./lib/agent.js";
+import { loadConfig, draftPaymentForDoneTask, readDraftStatus, confirmsDraft } from "./lib/agent.js";
+import { client } from "./lib/send21.js";
 import { chunk } from "./lib/address.js";
 import { verifyV2 } from "./lib/webhook.js";
 
@@ -15,6 +16,7 @@ const dir = fileURLToPath(new URL(".", import.meta.url));
 loadEnv(dir);
 const cfg = loadConfig(dir);
 const mcp = mcpClient();
+const api = client();
 const port = Number(process.env.PORT || 3022);
 
 // One task in memory: in_progress -> awaiting_signature -> paid
@@ -38,7 +40,7 @@ async function lookupHelperApproval() {
 
 function view() {
   const approved = state.review ? Boolean(state.review.approvedInSend21) : Boolean(helperApproved);
-  return { task: cfg.task, helper: { ...cfg.helper, chunks: chunk(cfg.helper.address), source: cfg.fileName, approvedInSend21: approved }, orderId: cfg.orderId, ...state };
+  return { task: cfg.task, helper: { ...cfg.helper, chunks: chunk(cfg.helper.address), source: cfg.fileName, approvedInSend21: approved }, idempotencyKey: cfg.idempotencyKey, ...state };
 }
 
 const server = http.createServer(async (req, res) => {
@@ -48,20 +50,20 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === "POST" && url.pathname === "/api/task/done") {
       // The helper reported the task done. The agent drafts the payment.
-      const r = await draftPaymentForDoneTask(mcp, cfg, { idempotencyKey: `${cfg.orderId}-${randomUUID()}` });
+      const r = await draftPaymentForDoneTask({ mcp, api }, cfg);
       if (r.stopped) return json(res, 409, { error: r.reason, steps: r.steps });
-      const reused = state.review?.paymentRequest.id === r.paymentRequest.id;
-      state.phase = "awaiting_signature";
-      state.review = { ...r, reused };
+      const reused = state.review?.draft.id === r.draft.id;
+      const qr = r.draft.paymentUri ? await QRCode.toString(r.draft.paymentUri, { type: "svg", margin: 1, color: { dark: "#1B1C20", light: "#FFFFFF" } }) : null;
+      state.phase = r.draft.status === "Confirmed" ? "paid" : "awaiting_signature";
+      state.review = { ...r, reused, qr };
       return json(res, 201, view());
     }
 
     if (req.method === "GET" && url.pathname === "/api/task/status") {
       if (state.review && state.phase !== "paid") {
-        const s = await readPaymentStatus(mcp, state.review.paymentRequest.id);
-        state.review.paymentRequest.status = s.status;
-        state.review.draftStatus = s.draftStatus;
-        if (s.status === "Completed") { state.phase = "paid"; state.paid ??= { source: "send21", localTest: false }; }
+        const s = await readDraftStatus(mcp, state.review.draft.id);
+        state.review.draft.status = s.status;
+        if (s.status === "Confirmed") { state.phase = "paid"; state.paid ??= { txId: s.paidTxId, confirmedAt: s.confirmedAt, localTest: false }; }
       }
       return json(res, 200, view());
     }
@@ -76,11 +78,8 @@ const server = http.createServer(async (req, res) => {
       if (handledDeliveries.has(delivery)) { res.writeHead(200); return res.end("already handled"); }
       handledDeliveries.add(delivery);
       const { event, data } = JSON.parse(raw.toString("utf8"));
-      // Mark paid only for this task's orderId, asset, network and price.
-      const expected = event === "draft.confirmed" && data?.orderId === cfg.orderId
-        && String(data.sentCurrency).toLowerCase() === cfg.helper.currency.toLowerCase()
-        && data.network === cfg.helper.network
-        && data.fiatCurrency === cfg.task.fiatCurrency && Number(data.fiatAmount) === Number(cfg.task.fiatAmount);
+      // Mark paid only for this task's draft, asset, network and billed amount.
+      const expected = confirmsDraft(event, data, state.review?.draft);
       if (expected) { state.phase = "paid"; state.paid = { txId: data.txId, confirmedAt: data.confirmedAt, sentAmount: data.sentAmount, localTest: local }; }
       res.writeHead(200); return res.end(expected ? "ok" : "ignored");
     }
@@ -96,4 +95,4 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(port, () => console.log(`agent-hires-local-helper on http://localhost:${port}  (task: ${cfg.task.title}; orderId ${cfg.orderId})`));
+server.listen(port, () => console.log(`agent-hires-local-helper on http://localhost:${port}  (task: ${cfg.task.title}; Idempotency-Key ${cfg.idempotencyKey})`));
