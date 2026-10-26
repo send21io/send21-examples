@@ -57,4 +57,4 @@ See [sample-prompt.md](sample-prompt.md). Option values: currency `Btc`, `Usdc`,
 
 For a scripted version of the same call, see [examples/mcp-payment-request](../examples/mcp-payment-request).
 
-Docs: https://send21.io/docs/mcp. Questions: info@send21.io
+Docs: https://send21.io/docs/mcp · Questions: info@send21.io

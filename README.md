@@ -76,7 +76,7 @@ You need Node.js 20.12 or newer. The P2P apps ([apps/send21-pair](apps/send21-pa
 cp .env.example .env
 ```
 
-Calls that create something need an API key or OAuth sign-in. The account owner creates scoped keys at https://send21.io/api-keys. Clients that support MCP sign-in (OAuth), such as Claude, Claude Code, Cursor, VS Code and Muse Code, can use `https://send21.io/mcp/oauth` with no headers instead: you sign in to send21 in the browser and approve the app, no key to copy. Connected apps only ever use receiving addresses the owner approved. See [Sign in instead of an API key](#sign-in-instead-of-an-api-key). `tools/list` and `get_fee_schedule` on the MCP server work without a key.
+Calls that create something need an API key or OAuth sign-in. The account owner creates scoped keys at https://send21.io/api-keys in the send21 app. Clients that support MCP sign-in (OAuth), such as Claude, Claude Code, Cursor, VS Code and Muse Code, can use `https://send21.io/mcp/oauth` with no headers instead: you sign in to send21 in the browser and approve the app, no key to copy. Connected apps only ever use receiving addresses the owner approved. See [Sign in instead of an API key](#sign-in-instead-of-an-api-key). `tools/list` and `get_fee_schedule` on the MCP server work without a key.
 
 **Approve your receiving addresses first.** New send21 accounts (created on or after 20 Oct 2026) only accept receiving addresses the owner approved, Lightning addresses included. Add them in the send21 app, or let an agent propose them with MCP `propose_receiving_address`, then sign in and approve each with a passkey or authenticator code. No API key can approve an address. Older accounts can opt in under Settings.
 
@@ -121,7 +121,7 @@ claude mcp add --transport http send21 https://send21.io/mcp/oauth
 
 **Any MCP client that supports OAuth:** add `https://send21.io/mcp/oauth` as a remote (Streamable HTTP) MCP server with no headers, then sign in when the client asks.
 
-Prefer an API key? It still works: use `https://send21.io/mcp` with `Authorization: Bearer s21_...`, a scoped key created at https://send21.io/api-keys. `tools/list` and `get_fee_schedule` work without either. Details: https://send21.io/docs/mcp
+Prefer an API key? It still works: use `https://send21.io/mcp` with `Authorization: Bearer s21_...`, a scoped key you create at https://send21.io/api-keys in your account. `tools/list` and `get_fee_schedule` work without either. Details: https://send21.io/docs/mcp
 
 ## mcp-payment-request
 
@@ -224,11 +224,11 @@ npm run send-sample -- draft.amount_mismatch
 npm run send-sample -- test
 ```
 
-Register the endpoint at https://send21.io/webhooks, or with `POST /api/v1/webhooks` and a key with the `webhooks:manage` scope. The signing secret is returned once when you create the endpoint. Put it in `SEND21_WEBHOOK_SECRET`.
+Register the endpoint at https://send21.io/webhooks in the send21 app or with `POST /api/v1/webhooks` and a key with the `webhooks:manage` scope. The signing secret is returned once when you create the endpoint. Put it in `SEND21_WEBHOOK_SECRET`.
 
 For a real signed delivery from send21, call `POST /api/v1/webhooks/{id}/test`. The delivery carries the `test` event.
 
-The full webhook guide is in the Webhooks section at https://send21.io/swagger. Each delivery is a `POST` with `Content-Type: application/json`, a body of `{"event": "<type>", "data": {...}}` and these headers:
+The full webhook guide is at https://send21.io/swagger under Webhooks. Each delivery is a `POST` with `Content-Type: application/json`, a body of `{"event": "<type>", "data": {...}}` and these headers:
 
 | Header | Meaning |
 |---|---|

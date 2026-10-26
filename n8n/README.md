@@ -33,4 +33,4 @@ When the payer signs and the payment reaches its confirmations, send21 posts `dr
 - Deliveries are retried (up to 8 attempts) and can arrive out of order. Skip an `X-Send21-Delivery` id you already handled and key records on `draftId` and `orderId`.
 - Account keys use the live networks; the test networks are for the [demo](https://send21.io/demo) only. A pay link moves no money until someone pays it: test with a small one to your own address and cancel it with `POST /api/v1/payment-requests/{id}/cancel`.
 
-Webhook guide: the Webhooks section at https://send21.io/swagger. Questions: info@send21.io
+Webhook guide: https://send21.io/swagger under Webhooks · Questions: info@send21.io

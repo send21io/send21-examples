@@ -48,4 +48,4 @@ Or send send21's own signed `test` event: `POST /api/v1/webhooks/{id}/test`.
 
 Tested on n8n 2.44.6 with environment access blocked (`N8N_BLOCK_ENV_ACCESS_IN_NODE=true`) and no extra modules: import, publish, form and API paths against the live send21 API (pay link created, email sent through a local SMTP sink, idempotent retry returned the same link), and the webhook branch with signed deliveries (bad signature 401, 5-minute-old delivery 401, amount mismatch flagged, confirmed marked paid with a receipt, repeated delivery ignored, unknown order flagged, `expired` after payment ignored).
 
-Docs: https://send21.io/docs/quickstart, https://send21.io/docs/webhooks. Questions: info@send21.io
+Docs: https://send21.io/docs/quickstart and https://send21.io/docs/webhooks · Questions: info@send21.io

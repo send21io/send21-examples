@@ -19,4 +19,4 @@ All of them follow the same rules:
 - **Amount mismatches are the owner's decision**, never the agent's.
 - **One link per order.** `orderId` + `reuseOpenForOrder: true` + an `Idempotency-Key`.
 
-Currencies: BTC (on-chain and Lightning), USDC, USDT (Solana and Ethereum only), EURC, SOL and ETH, priced in any of 161 fiat currencies. See https://send21.io/docs/currencies.
+Currencies: BTC (on-chain and Lightning), USDC, USDT (Solana and Ethereum only), EURC, SOL and ETH, priced in any of 161 fiat currencies. Full list at https://send21.io/docs/currencies on the send21 site.

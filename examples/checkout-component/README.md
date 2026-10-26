@@ -33,7 +33,7 @@ Open http://localhost:5930, press **Pay with crypto**, then **Open pay page**. I
 
 Without `npm install` everything still works; the component then shows the pay link without the QR image.
 
-To try real pay links on test networks without an account, use the send21 testnet demo at https://send21.io/demo. On send21.io the test networks are reserved for that demo; pay links made with your own API key use the live networks. To test with your own key, create a small pay link to your own address. Nothing moves until someone signs a payment.
+To try real pay links on test networks without an account, use the send21 testnet demo at https://send21.io/demo with no sign-up. On send21.io the test networks are reserved for that demo; pay links made with your own API key use the live networks. To test with your own key, create a small pay link to your own address. Nothing moves until someone signs a payment.
 
 ## How it works
 
@@ -143,7 +143,7 @@ import { Send21Checkout } from "./react/Send21Checkout.js";
 | `GET /checkout/:orderId/status` | `{ orderId, status, payUrl, expiresAt, assets, txId? }`. In live mode it also reads `GET /api/v1/payment-requests/{id}` at most every 15 s to notice an expired or cancelled link. |
 | `POST /webhooks/send21` | The send21 webhook. Register this URL (HTTPS, public) at https://send21.io/webhooks or with `POST /api/v1/webhooks` and subscribe at least to `draft.confirmed`; `draft.seen`, `draft.amount_mismatch` and `payment_request.expired` are used too. |
 
-The send21 calls, as documented in https://send21.io/swagger and https://send21.io/docs/quickstart:
+The send21 calls, documented at https://send21.io/swagger and https://send21.io/docs/quickstart in detail:
 
 ```http
 POST https://send21.io/api/v1/payment-requests
@@ -189,7 +189,7 @@ The response's `payPath` is appended to `https://send21.io` to make the pay link
 | `DATA_FILE` | `./data/orders.json` | Order and delivery-id store. Empty string = memory only. |
 | `PORT` | `5930` | Port. |
 
-Supported assets: BTC on Bitcoin (on-chain, or over Lightning to your Lightning address); USDC on Solana, Ethereum, Base, Arbitrum and Polygon (native USDC only on Arbitrum and Polygon); USDT on Solana and Ethereum only; EURC on Solana, Ethereum and Base; SOL on Solana; ETH on Ethereum, Base and Arbitrum; wrapped BTC on Solana and Ethereum. See https://send21.io/docs/currencies.
+Supported assets: BTC on Bitcoin (on-chain, or over Lightning to your Lightning address); USDC on Solana, Ethereum, Base, Arbitrum and Polygon (native USDC only on Arbitrum and Polygon); USDT on Solana and Ethereum only; EURC on Solana, Ethereum and Base; SOL on Solana; ETH on Ethereum, Base and Arbitrum; wrapped BTC on Solana and Ethereum. Full list at https://send21.io/docs/currencies on the send21 site.
 
 Use a real database instead of the JSON file (orders and seen delivery ids must survive restarts and be shared across instances), and serve everything over HTTPS.
 

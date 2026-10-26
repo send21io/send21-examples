@@ -44,4 +44,4 @@ See [sample-prompt.md](sample-prompt.md). Option values come from the live `crea
 
 To learn when a link is paid, register a webhook (see [../n8n](../n8n) or [the webhook receiver](../examples/webhook-receiver)).
 
-Docs: https://send21.io/docs/mcp. Questions: info@send21.io
+Docs: https://send21.io/docs/mcp · Questions: info@send21.io

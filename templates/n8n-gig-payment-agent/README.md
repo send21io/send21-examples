@@ -27,4 +27,4 @@ USDT works on Solana and Ethereum only, and the system prompt keeps to that.
 
 Tested on n8n 2.44.6: the workflow imports and publishes. n8n's own MCP Client node connected to `https://send21.io/mcp` with the Bearer credential over HTTP Streamable and ran `get_account_status` and `get_rate`. All six selected tool names are among the 14 the server lists. A full chat run needs an LLM key and was not part of the test.
 
-Docs: https://send21.io/docs/mcp. Questions: info@send21.io
+Docs: https://send21.io/docs/mcp · Questions: info@send21.io

@@ -20,7 +20,7 @@ intake -> validate -> create_link -> send_link -> wait_for_payment (interrupt) -
 ## Setup (3 steps)
 
 1. `pip install -r requirements.txt` (Python 3.10+).
-2. Copy `.env.example` to `.env` and fill it in: `SEND21_API_KEY` (from https://send21.io/api-keys, scopes `drafts:write`, `drafts:read`, `addressbook:read`, plus `addressbook:write` to propose addresses) and `SEND21_RECEIVE_OPTIONS` with your own addresses, for example `[{"currency":"Usdc","network":"Solana","address":"..."}]`. USDT works on Solana and Ethereum only. Load the file with `set -a; . ./.env; set +a`.
+2. Copy `.env.example` to `.env` and fill it in: `SEND21_API_KEY` (create it at https://send21.io/api-keys with scopes `drafts:write`, `drafts:read`, `addressbook:read`, plus `addressbook:write` to propose addresses) and `SEND21_RECEIVE_OPTIONS` with your own addresses, for example `[{"currency":"Usdc","network":"Solana","address":"..."}]`. USDT works on Solana and Ethereum only. Load the file with `set -a; . ./.env; set +a`.
 3. Run the webhook receiver on a public HTTPS address (send21 refuses private and internal endpoints), register it once, and store the secret it prints (shown once) as `SEND21_WEBHOOK_SECRET`:
    ```bash
    python webhook_server.py --register https://your-host/send21/webhook   # needs webhooks:manage
@@ -46,4 +46,4 @@ Ten offline tests use a fake send21 and deliveries signed the way send21 signs t
 
 Also run live against send21: `create` made a real pay link over MCP (3 EUR, USDC and USDT on Solana). The local webhook server then got signed deliveries: a bad signature and a 400-second-old delivery got 401, `draft.amount_mismatch` left the invoice waiting as `needs_review`, `draft.confirmed` resumed the graph to `paid`, and the same delivery again was ignored. The free-text intake was tested with a fake model only.
 
-Docs: https://send21.io/docs/mcp, https://send21.io/docs/webhooks. Questions: info@send21.io
+Docs: https://send21.io/docs/mcp and https://send21.io/docs/webhooks · Questions: info@send21.io

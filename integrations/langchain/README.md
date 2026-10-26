@@ -7,7 +7,7 @@ send21 is non-custodial software that prepares payment instructions. It never ho
 Not an official LangChain package. Questions: info@send21.io
 
 - Website: https://send21.io
-- Docs: https://send21.io/docs (MCP server: https://send21.io/docs/mcp, webhooks: https://send21.io/docs/webhooks)
+- Docs: https://send21.io/docs · MCP server: https://send21.io/docs/mcp · Webhooks: https://send21.io/docs/webhooks
 - Examples and source: https://github.com/send21io/send21-examples
 
 ## Install
@@ -87,7 +87,7 @@ client = MultiServerMCPClient({"send21": {
 tools = await client.get_tools()
 ```
 
-A connected app only ever uses receiving addresses the owner approved, and the owner can disconnect it under https://send21.io/api-keys. Tools: create_draft, get_draft, get_draft_status, list_draft_quotes, get_transaction_template, submit_lightning_proof, create_payment_request, get_payment_request, list_address_book, propose_receiving_address, get_account_status, create_account, get_rate, get_fee_schedule. Details: https://send21.io/docs/mcp
+A connected app only ever uses receiving addresses the owner approved, and the owner can disconnect it under https://send21.io/api-keys at any time. Tools: create_draft, get_draft, get_draft_status, list_draft_quotes, get_transaction_template, submit_lightning_proof, create_payment_request, get_payment_request, list_address_book, propose_receiving_address, get_account_status, create_account, get_rate, get_fee_schedule. Details: https://send21.io/docs/mcp
 
 ## Develop
 

@@ -54,4 +54,4 @@ Supported: BTC on-chain and over Lightning, USDC on Solana, Ethereum, Base, Arbi
 
 Testing with your own key uses the live networks. A pay link moves no money until someone pays it; cancel test links with `POST https://send21.io/api/v1/payment-requests/{id}/cancel`.
 
-Docs: https://send21.io/docs/mcp. Questions: info@send21.io
+Docs: https://send21.io/docs/mcp · Questions: info@send21.io

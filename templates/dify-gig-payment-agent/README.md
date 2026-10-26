@@ -14,7 +14,7 @@ The receiving addresses are environment variables only the app owner sets. A run
 ## Setup (3 steps)
 
 1. **Import.** In Dify: Studio > Import DSL file > `send21-gig-payment-agent.dify.yml`.
-2. **Environment variables** (workflow > Env): `SEND21_API_KEY` (secret, an `s21_...` key with `drafts:write` from https://send21.io/api-keys) and at least one of your own addresses: `SEND21_SOLANA_ADDRESS` (USDC and USDT on Solana), `SEND21_BASE_ADDRESS` (USDC and EURC on Base), `SEND21_LIGHTNING_ADDRESS` (BTC over Lightning, name@wallet.com). Approve each address yourself in the send21 app first (passkey or authenticator code). An unapproved address returns `422 address_not_approved` and nothing is created. No API key can approve an address.
+2. **Environment variables** (workflow > Env): `SEND21_API_KEY` (secret, an `s21_...` key with `drafts:write`, created at https://send21.io/api-keys in your account) and at least one of your own addresses: `SEND21_SOLANA_ADDRESS` (USDC and USDT on Solana), `SEND21_BASE_ADDRESS` (USDC and EURC on Base), `SEND21_LIGHTNING_ADDRESS` (BTC over Lightning, name@wallet.com). Approve each address yourself in the send21 app first (passkey or authenticator code). An unapproved address returns `422 address_not_approved` and nothing is created. No API key can approve an address.
 3. **Model.** Pick any chat model in **Write client message** (the template names OpenAI `gpt-4o-mini`; install the provider plugin or switch it), then Run.
 
 Re-running with the same job id returns the same open link. A changed amount needs a new job id.
@@ -27,4 +27,4 @@ Dify answers when the pay link is created. To mark the job paid when it confirms
 
 The DSL (version 0.3.1, imports on current Dify with a minor-version note) validates node by node against the data models of `graphon`, Dify's workflow engine, and every `{{#node.var#}}` reference points to a real node or environment variable. Both Code nodes ran exactly as written in the DSL. The HTTP Request node's headers, bearer auth and JSON body were built by graphon's own HTTP executor and sent to the live send21 API, which returned the pay link. An invalid address came back as a clear stop, and an empty total was refused before any call. The template was not imported into a running Dify instance.
 
-Docs: https://send21.io/docs/quickstart. Questions: info@send21.io
+Docs: https://send21.io/docs/quickstart · Questions: info@send21.io

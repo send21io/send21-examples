@@ -44,7 +44,7 @@ Supported: BTC on Bitcoin and over Lightning, USDC on Solana, Ethereum, Base, Ar
 
 Payment confirmations arrive as signed webhooks; see the webhook receiver in https://github.com/send21io/send21-examples.
 
-Prefer MCP? The same capabilities are on the hosted MCP server at https://send21.io/mcp.
+Prefer MCP? The hosted MCP server at https://send21.io/mcp has the same capabilities.
 
 New send21 accounts only accept receiving addresses the owner approved: approve each `receiveOptions` address in send21 first (sign in, passkey or authenticator code). A 422 `address_not_approved` or 403 `owner_not_confirmed` comes back as a plain explanation the agent can relay, and nothing is created.
 
