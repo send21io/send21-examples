@@ -1,0 +1,20 @@
+{
+  "name": "@activepieces/piece-send21",
+  "version": "0.1.0",
+  "description": "Activepieces piece for send21: crypto pay links and payment drafts. A flow prepares them; a person signs and sends from their own wallet. send21 never holds keys or funds.",
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "license": "MIT",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "node --test test/*.test.cjs"
+  },
+  "dependencies": {
+    "@activepieces/pieces-common": "^0.5.0",
+    "@activepieces/pieces-framework": "^0.12.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.0",
+    "typescript": "^5.9.0"
+  }
+}
