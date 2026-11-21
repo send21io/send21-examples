@@ -1,0 +1,100 @@
+name: send21 create draft
+description: >
+  Create a send21 payment draft and comment its status on a GitHub issue or pull request.
+  The API key cannot move funds; a person signs and sends from their own wallet.
+author: send21
+branding:
+  icon: dollar-sign
+  color: orange
+inputs:
+  api-key:
+    description: Scoped send21 API key (s21_...). Needs drafts:write. Cannot move funds. Store this as a GitHub secret; never commit it.
+    required: true
+  github-token:
+    description: Token used to comment on the issue or pull request. Defaults to the workflow token.
+    required: false
+    default: ${{ github.token }}
+  receiver-address:
+    description: Address that will receive the payment. It must already be approved in send21 on ApprovedOnly accounts.
+    required: true
+  network:
+    description: send21 network. Account keys use the live networks (Mainnet, Solana, Ethereum, Base, Arbitrum, Polygon).
+    required: true
+    default: Solana
+  currency:
+    description: Asset to send (Btc, Usdc, Usdt, Eurc, Sol, Eth).
+    required: true
+    default: Usdc
+  payment-method:
+    description: MultiOutput for on-chain, or Lightning.
+    required: false
+    default: MultiOutput
+  fiat-currency:
+    description: ISO currency code when pricing in fiat, for example EUR.
+    required: false
+    default: EUR
+  fiat-amount:
+    description: Amount in the fiat currency. Required unless amount-sats is set.
+    required: false
+  amount-sats:
+    description: Exact amount in the asset's base units (8 decimals for BTC, 6 for USDC/USDT/EURC, 9 for SOL and ETH in gwei).
+    required: false
+  memo:
+    description: Optional memo stored on the draft.
+    required: false
+  idempotency-key:
+    description: Reuse the same key to return the original draft. Defaults to send21-draft-<owner>/<repo>#<issue-number>.
+    required: false
+  single-output:
+    description: 'When true (default), one QR payment with the fee billed to the account. Set false for a PSBT-style fee output.'
+    required: false
+    default: "true"
+  expiry-hours:
+    description: 1 to 720 hours. Default 24. The expiry never moves once the draft is created.
+    required: false
+    default: "24"
+  issue-number:
+    description: Issue or pull request number to comment on. Defaults to the current GitHub event's issue or pull request.
+    required: false
+  comment:
+    description: 'Whether to comment the draft status on the issue or pull request.'
+    required: false
+    default: "true"
+outputs:
+  draft-id:
+    description: The created (or reused) draft id.
+    value: ${{ steps.run.outputs.draft-id }}
+  status:
+    description: Draft status (AwaitingPayment, Seen, Confirmed, Expired or Cancelled).
+    value: ${{ steps.run.outputs.status }}
+  payment-uri:
+    description: Wallet URI for the payer, when the API returns one.
+    value: ${{ steps.run.outputs.payment-uri }}
+  comment-url:
+    description: URL of the issue comment, when one was posted.
+    value: ${{ steps.run.outputs.comment-url }}
+runs:
+  using: composite
+  steps:
+    - name: Create draft and comment status
+      id: run
+      shell: bash
+      env:
+        SEND21_API_KEY: ${{ inputs.api-key }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        INPUT_RECEIVER_ADDRESS: ${{ inputs.receiver-address }}
+        INPUT_NETWORK: ${{ inputs.network }}
+        INPUT_CURRENCY: ${{ inputs.currency }}
+        INPUT_PAYMENT_METHOD: ${{ inputs.payment-method }}
+        INPUT_FIAT_CURRENCY: ${{ inputs.fiat-currency }}
+        INPUT_FIAT_AMOUNT: ${{ inputs.fiat-amount }}
+        INPUT_AMOUNT_SATS: ${{ inputs.amount-sats }}
+        INPUT_MEMO: ${{ inputs.memo }}
+        INPUT_IDEMPOTENCY_KEY: ${{ inputs.idempotency-key }}
+        INPUT_SINGLE_OUTPUT: ${{ inputs.single-output }}
+        INPUT_EXPIRY_HOURS: ${{ inputs.expiry-hours }}
+        INPUT_ISSUE_NUMBER: ${{ inputs.issue-number }}
+        INPUT_COMMENT: ${{ inputs.comment }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+        GITHUB_EVENT_PATH: ${{ github.event_path }}
+      run: node "${{ github.action_path }}/src/create-draft.js"
