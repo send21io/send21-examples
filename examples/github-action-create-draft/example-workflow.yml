@@ -1,0 +1,26 @@
+# Example: create a send21 draft and comment its status when an issue is labeled "payout-ready".
+# Copy to .github/workflows/send21-draft.yml in your repository.
+# Store the send21 key as the SEND21_API_KEY secret. The key cannot move funds.
+
+name: send21 draft comment
+
+on:
+  issues:
+    types: [labeled]
+
+jobs:
+  create-draft:
+    if: github.event.label.name == 'payout-ready'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - uses: send21io/send21-examples/examples/github-action-create-draft@main
+        with:
+          api-key: ${{ secrets.SEND21_API_KEY }}
+          receiver-address: ${{ vars.SEND21_RECEIVER_ADDRESS }}
+          network: Solana
+          currency: Usdc
+          fiat-currency: EUR
+          fiat-amount: "25"
+          memo: "Issue #${{ github.event.issue.number }}"
