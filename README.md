@@ -39,6 +39,7 @@ Copy-paste setups for common tools:
 | [examples/agno](examples/agno) | The same flow as an [Agno](https://docs.agno.com/) agent, using `MCPTools` over Streamable HTTP against `https://send21.io/mcp`. Dry run, a no-model path, and an agent path. The agent only prepares the payment. |
 | [examples/pydantic-ai](examples/pydantic-ai) | A [Pydantic AI](https://ai.pydantic.dev/) agent that connects to `https://send21.io/mcp`, creates a pay link or draft and reads its status. Receiving addresses come from the environment. The agent only prepares the payment; a person signs and sends from their own wallet. Includes a dry run that needs no key. |
 | [examples/sparrow-hardware-wallet](examples/sparrow-hardware-wallet) | Fetch `GET /drafts/{id}/tx-template`, write the Sparrow/Electrum pay-to-many CSV, and sign the Bitcoin draft on a hardware wallet. The fee is a separate output (`singleOutput: false`). send21 never signs or broadcasts. |
+| [examples/hugo-ghost-pay-link](examples/hugo-ghost-pay-link) | A Hugo shortcode and a Ghost HTML embed for a send21 pay link. Light UI (white, soft neutrals, orange only on the button). The payer signs and sends from their own wallet. For a new link per order, pair it with a small backend such as [checkout-component](examples/checkout-component). |
 
 ## Integrations
 

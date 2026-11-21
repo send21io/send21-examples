@@ -1,0 +1,43 @@
+<!--
+  Ghost custom HTML card. Replace the href with a pay link you created in send21
+  (or with a small backend that creates one per order). Paste the CSS once
+  in Ghost Settings → Code injection → Site header, or keep this <style> in the card.
+-->
+<style>
+  .send21-pay {
+    --send21-fg: #1b1c20;
+    --send21-muted: #5c574d;
+    --send21-line: #e6dfd0;
+    --send21-bg: #ffffff;
+    --send21-accent: #f7931a;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    color: var(--send21-fg);
+    background: var(--send21-bg);
+    border: 1px solid var(--send21-line);
+    border-radius: 14px;
+    padding: 20px 22px;
+    max-width: 22rem;
+    display: grid;
+    gap: 12px;
+    justify-items: start;
+  }
+  .send21-pay__amount { margin: 0; font-size: 1.35rem; font-weight: 700; letter-spacing: -0.02em; }
+  .send21-pay__button {
+    display: inline-block;
+    background: var(--send21-accent);
+    color: var(--send21-fg);
+    font-weight: 700;
+    text-decoration: none;
+    border-radius: 999px;
+    padding: 10px 18px;
+    line-height: 1.2;
+  }
+  .send21-pay__button:hover { filter: brightness(1.05); }
+  .send21-pay__button:focus-visible { outline: 3px solid var(--send21-accent); outline-offset: 3px; }
+  .send21-pay__note { margin: 0; font-size: 0.85rem; color: var(--send21-muted); line-height: 1.45; }
+</style>
+<div class="send21-pay">
+  <p class="send21-pay__amount">20 EUR</p>
+  <a class="send21-pay__button" href="https://send21.io/pay/REPLACE_ME" rel="noopener">Pay with crypto</a>
+  <p class="send21-pay__note">You sign and send from your own wallet. send21 never holds the funds.</p>
+</div>
