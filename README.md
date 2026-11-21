@@ -38,6 +38,7 @@ Copy-paste setups for common tools:
 | [examples/webhook-receiver-sqlite](examples/webhook-receiver-sqlite) | The same receiver with a durable delivery-id store in SQLite (`node:sqlite`, no server, no dependency): the `X-Send21-Delivery` id and the order update are committed in one transaction before the 2xx answer, so a restart, a lost ack or a crash before commit never applies an update twice or loses it. Tests kill and restart the process to show it. |
 | [examples/agno](examples/agno) | The same flow as an [Agno](https://docs.agno.com/) agent, using `MCPTools` over Streamable HTTP against `https://send21.io/mcp`. Dry run, a no-model path, and an agent path. The agent only prepares the payment. |
 | [examples/pydantic-ai](examples/pydantic-ai) | A [Pydantic AI](https://ai.pydantic.dev/) agent that connects to `https://send21.io/mcp`, creates a pay link or draft and reads its status. Receiving addresses come from the environment. The agent only prepares the payment; a person signs and sends from their own wallet. Includes a dry run that needs no key. |
+| [examples/sparrow-hardware-wallet](examples/sparrow-hardware-wallet) | Fetch `GET /drafts/{id}/tx-template`, write the Sparrow/Electrum pay-to-many CSV, and sign the Bitcoin draft on a hardware wallet. The fee is a separate output (`singleOutput: false`). send21 never signs or broadcasts. |
 
 ## Integrations
 
