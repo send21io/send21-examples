@@ -1,0 +1,12 @@
+{
+  "name": "send21-sparrow-hardware-wallet",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Fetch a send21 Bitcoin tx-template and write a Sparrow pay-to-many CSV for signing on a hardware wallet.",
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "start": "node fetch-tx-template.js",
+    "test": "node --test test/*.test.js"
+  }
+}
