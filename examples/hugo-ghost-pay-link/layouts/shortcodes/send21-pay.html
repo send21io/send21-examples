@@ -1,0 +1,19 @@
+{{- $link := .Get "link" -}}
+{{- $amount := .Get "amount" -}}
+{{- $currency := .Get "currency" -}}
+{{- $label := .Get "label" | default "Pay with crypto" -}}
+{{- $note := .Get "note" -}}
+{{- if not $link -}}
+  {{ errorf "send21-pay shortcode requires a link, for example {{</* send21-pay link=\"https://send21.io/pay/...\" amount=\"20\" currency=\"EUR\" */>}}" }}
+{{- end -}}
+<div class="send21-pay">
+  {{- if and $amount $currency -}}
+  <p class="send21-pay__amount">{{ $amount }} {{ $currency }}</p>
+  {{- end -}}
+  <a class="send21-pay__button" href="{{ $link }}" rel="noopener">{{ $label }}</a>
+  {{- if $note -}}
+  <p class="send21-pay__note">{{ $note }}</p>
+  {{- else -}}
+  <p class="send21-pay__note">You sign and send from your own wallet. send21 never holds the funds.</p>
+  {{- end -}}
+</div>
