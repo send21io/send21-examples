@@ -24,7 +24,7 @@ Refunds are manual. Crypto payments cannot be pulled back and send21 never holds
 1. `cp .env.example .env` and fill it in:
    - `SEND21_API_KEY`: a send21 key with `drafts:read` and `drafts:write`. It can create pay links; no key can move funds.
    - `SEND21_OPTIONS`: your receiving addresses, saved in send21 as approved addresses ("My own, I receive here").
-   - `INVOICENINJA_URL`, `INVOICENINJA_TOKEN` (Settings → Account Management → Integrations → API tokens), `INVOICENINJA_WEBHOOK_TOKEN` (any long random string).
+   - `INVOICENINJA_URL`, `INVOICENINJA_TOKEN` (an API token from Invoice Ninja's settings), `INVOICENINJA_WEBHOOK_TOKEN` (any long random string).
 2. Register the send21 webhook (key with `webhooks:manage`) and put the secret it returns once into `SEND21_WEBHOOK_SECRET`:
 
    ```sh
@@ -33,7 +33,7 @@ Refunds are manual. Crypto payments cannot be pulled back and send21 never holds
      -d '{"url":"https://pay-bridge.example.com/send21/webhook","events":["draft.confirmed","draft.amount_mismatch","draft.mismatch_reminder","draft.mismatch_unresolved","payment_request.expired"]}'
    ```
 
-3. In Invoice Ninja, add a webhook (Settings → Account Management → Integrations → API webhooks) for **Create invoice**, POST, target `https://pay-bridge.example.com/invoiceninja/webhook`, with the header `X-Webhook-Token: <your token>`.
+3. In Invoice Ninja, add an API webhook in the settings for the **Create invoice** event, POST, target `https://pay-bridge.example.com/invoiceninja/webhook`, with the header `X-Webhook-Token: <your token>`.
 4. `npm start` (Node.js 20.12+, no dependencies). It must be reachable over HTTPS on a public address; send21 refuses private and internal webhook URLs.
 
 For an existing invoice: `npm run create-link -- <invoice id>`.
