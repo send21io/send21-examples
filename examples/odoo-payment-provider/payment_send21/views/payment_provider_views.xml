@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="payment_provider_form" model="ir.ui.view">
+        <field name="name">send21 Provider Form</field>
+        <field name="model">payment.provider</field>
+        <field name="inherit_id" ref="payment.payment_provider_form"/>
+        <field name="arch" type="xml">
+            <group name="provider_credentials" position="inside">
+                <group invisible="code != 'send21'">
+                    <field name="send21_api_key" string="API Key" required="code == 'send21' and state != 'disabled'" password="True"/>
+                    <field name="send21_webhook_secret" required="code == 'send21' and state != 'disabled'" password="True"/>
+                    <field name="send21_receive_options" required="code == 'send21' and state != 'disabled'" placeholder='[{"currency":"Usdc","network":"Base","address":"0x..."}]'/>
+                    <field name="send21_decline_note"/>
+                    <field name="send21_expiry_hours"/>
+                    <div colspan="2" class="text-muted">
+                        Register https://your-odoo/payment/send21/webhook in send21 for draft.confirmed,
+                        draft.amount_mismatch and payment_request.expired. Refunds are manual, from your own wallet.
+                    </div>
+                </group>
+            </group>
+        </field>
+    </record>
+
+</odoo>

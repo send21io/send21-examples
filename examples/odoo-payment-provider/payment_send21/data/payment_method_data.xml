@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+
+    <record id="payment_method_send21" model="payment.method">
+        <field name="name">Crypto (send21)</field>
+        <field name="code">send21</field>
+        <field name="sequence">1000</field>
+        <field name="image" type="base64" file="payment_send21/static/img/send21.png"/>
+        <field name="support_tokenization">False</field>
+        <field name="support_express_checkout">False</field>
+        <field name="support_refund">none</field>
+    </record>
+
+</odoo>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <template id="redirect_form">
+        <!-- send21 returns one pay link per transaction; the customer is sent to it. -->
+        <form t-att-action="api_url" method="get"/>
+    </template>
+
+</odoo>

@@ -68,3 +68,47 @@ jobs:
           python-version: "3.12"
       - run: python -m py_compile send21_payments/*.py send21_payments/send21_payments/doctype/*/*.py
       - run: python -m unittest discover -s send21_payments/tests -t . -v
+
+  odoo-payment-provider:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: examples/odoo-payment-provider
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m unittest discover -s tests -v
+
+  odoo-payment-provider-in-odoo18:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: odoo
+          POSTGRES_PASSWORD: odoo
+          POSTGRES_DB: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: sudo apt-get update && sudo apt-get install -y libldap2-dev libsasl2-dev libpq-dev
+      - run: git clone --depth 1 --branch 18.0 https://github.com/odoo/odoo.git "$RUNNER_TEMP/odoo"
+      - run: pip install uv && uv pip install --system -r "$RUNNER_TEMP/odoo/requirements.txt"
+      - name: Install payment_send21 and run its tests
+        run: |
+          python "$RUNNER_TEMP/odoo/odoo-bin" --addons-path="$RUNNER_TEMP/odoo/addons,$GITHUB_WORKSPACE/examples/odoo-payment-provider" \
+            --db_host=localhost --db_user=odoo --db_password=odoo -d test_send21 \
+            -i payment_send21 --test-tags /payment_send21 --stop-after-init --log-level=test 2>&1 | tee odoo.log
+          grep -q "0 failed, 0 error(s)" odoo.log
