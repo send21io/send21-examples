@@ -1,0 +1,16 @@
+[project]
+name = "send21_payments"
+authors = [{ name = "send21", email = "info@send21.io" }]
+description = "send21 crypto pay links for ERPNext Sales Invoices"
+requires-python = ">=3.10"
+readme = "README.md"
+dynamic = ["version"]
+dependencies = []
+
+[build-system]
+requires = ["flit_core >=3.4,<4"]
+build-backend = "flit_core.buildapi"
+
+[tool.bench.frappe-dependencies]
+frappe = ">=15.0.0,<17.0.0"
+erpnext = ">=15.0.0,<17.0.0"

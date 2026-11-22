@@ -1,0 +1,17 @@
+[
+ {
+  "doctype": "Custom Field",
+  "name": "Sales Invoice-send21_pay_link",
+  "dt": "Sales Invoice",
+  "fieldname": "send21_pay_link",
+  "fieldtype": "Data",
+  "options": "URL",
+  "label": "send21 Pay Link",
+  "insert_after": "due_date",
+  "read_only": 1,
+  "allow_on_submit": 1,
+  "no_copy": 1,
+  "print_hide": 0,
+  "module": "Send21 Payments"
+ }
+]

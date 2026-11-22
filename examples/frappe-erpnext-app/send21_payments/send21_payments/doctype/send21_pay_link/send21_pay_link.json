@@ -1,0 +1,132 @@
+{
+ "doctype": "DocType",
+ "name": "Send21 Pay Link",
+ "module": "Send21 Payments",
+ "custom": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "order_id",
+  "status",
+  "reference_doctype",
+  "reference_name",
+  "pay_link",
+  "payment_request_id",
+  "amount",
+  "currency",
+  "column_break",
+  "tx_id",
+  "payment_entry",
+  "note"
+ ],
+ "fields": [
+  {
+   "fieldname": "order_id",
+   "fieldtype": "Data",
+   "label": "Order ID",
+   "unique": 1,
+   "reqd": 1,
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "Open\nPaid\nExpired\nNeeds review",
+   "default": "Open",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "reference_doctype",
+   "fieldtype": "Link",
+   "label": "Reference DocType",
+   "options": "DocType",
+   "read_only": 1
+  },
+  {
+   "fieldname": "reference_name",
+   "fieldtype": "Dynamic Link",
+   "label": "Reference Name",
+   "options": "reference_doctype",
+   "read_only": 1,
+   "in_list_view": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "pay_link",
+   "fieldtype": "Data",
+   "label": "Pay link",
+   "options": "URL",
+   "read_only": 1
+  },
+  {
+   "fieldname": "payment_request_id",
+   "fieldtype": "Data",
+   "label": "send21 payment request",
+   "read_only": 1
+  },
+  {
+   "fieldname": "amount",
+   "fieldtype": "Currency",
+   "label": "Amount",
+   "options": "currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "currency",
+   "fieldtype": "Link",
+   "label": "Currency",
+   "options": "Currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break",
+   "fieldtype": "Column Break",
+   "label": ""
+  },
+  {
+   "fieldname": "tx_id",
+   "fieldtype": "Data",
+   "label": "Transaction id",
+   "read_only": 1
+  },
+  {
+   "fieldname": "payment_entry",
+   "fieldtype": "Link",
+   "label": "Payment Entry",
+   "options": "Payment Entry",
+   "read_only": 1
+  },
+  {
+   "fieldname": "note",
+   "fieldtype": "Small Text",
+   "label": "Note",
+   "read_only": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "print": 0,
+   "email": 0,
+   "share": 1,
+   "delete": 1,
+   "export": 1,
+   "report": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 1,
+ "modified": "2026-11-22 12:00:00.000000",
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "creation": "2026-11-22 12:00:00.000000",
+ "autoname": "field:order_id",
+ "title_field": "reference_name",
+ "in_create": 1
+}

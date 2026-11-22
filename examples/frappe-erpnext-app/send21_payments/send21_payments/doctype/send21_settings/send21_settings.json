@@ -1,0 +1,104 @@
+{
+ "doctype": "DocType",
+ "name": "Send21 Settings",
+ "module": "Send21 Payments",
+ "custom": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "enabled",
+  "api_key",
+  "webhook_secret",
+  "receive_options",
+  "decline_note",
+  "expiry_hours",
+  "auto_create_on_submit",
+  "section_accounts",
+  "mode_of_payment",
+  "paid_to_account"
+ ],
+ "fields": [
+  {
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "label": "Enabled",
+   "default": "0"
+  },
+  {
+   "fieldname": "api_key",
+   "fieldtype": "Password",
+   "label": "API key",
+   "description": "send21 key with drafts:read and drafts:write. It can create pay links; no key can move funds.",
+   "length": 200
+  },
+  {
+   "fieldname": "webhook_secret",
+   "fieldtype": "Password",
+   "label": "Webhook signing secret",
+   "description": "Returned once by POST /api/v1/webhooks.",
+   "length": 200
+  },
+  {
+   "fieldname": "receive_options",
+   "fieldtype": "Code",
+   "label": "Receiving options (JSON)",
+   "options": "JSON",
+   "description": "For example [{\"currency\":\"Usdc\",\"network\":\"Base\",\"address\":\"0x...\"}]. Use addresses you approved in send21."
+  },
+  {
+   "fieldname": "decline_note",
+   "fieldtype": "Small Text",
+   "label": "If the customer does not pay",
+   "description": "Shown on the pay page as \"If you don't pay:\". Plain text, max 200 characters."
+  },
+  {
+   "fieldname": "expiry_hours",
+   "fieldtype": "Int",
+   "label": "Pay link open for (hours)",
+   "default": "24",
+   "description": "1 to 720. Never moves once the link exists."
+  },
+  {
+   "fieldname": "auto_create_on_submit",
+   "fieldtype": "Check",
+   "label": "Create a pay link when a Sales Invoice is submitted",
+   "default": "0"
+  },
+  {
+   "fieldname": "section_accounts",
+   "fieldtype": "Section Break",
+   "label": "Payment Entry"
+  },
+  {
+   "fieldname": "mode_of_payment",
+   "fieldtype": "Link",
+   "label": "Mode of Payment",
+   "options": "Mode of Payment"
+  },
+  {
+   "fieldname": "paid_to_account",
+   "fieldtype": "Link",
+   "label": "Paid to account",
+   "options": "Account",
+   "description": "The asset account that tracks your own wallet. Leave empty to use the mode of payment default."
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "print": 0,
+   "email": 0,
+   "share": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 1,
+ "modified": "2026-11-22 12:00:00.000000",
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "creation": "2026-11-22 12:00:00.000000",
+ "issingle": 1
+}
