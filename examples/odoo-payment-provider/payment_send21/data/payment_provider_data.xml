@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+
+    <record id="payment_provider_send21" model="payment.provider">
+        <field name="name">send21</field>
+        <field name="code">send21</field>
+        <field name="image_128" type="base64" file="payment_send21/static/description/icon.png"/>
+        <field name="module_id" ref="base.module_payment_send21"/>
+        <field name="redirect_form_view_id" ref="redirect_form"/>
+        <field name="payment_method_ids" eval="[Command.set([ref('payment_method_send21')])]"/>
+        <field name="pre_msg"><![CDATA[<p>You will pay on send21. You sign and send from your own wallet, straight to us.</p>]]></field>
+    </record>
+
+</odoo>
