@@ -23,3 +23,19 @@ jobs:
         with:
           node-version: 24
       - run: npm test
+
+  fossbilling-adapter:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: examples/fossbilling-adapter
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: curl, mbstring
+      - run: php -l src/library/Payment/Adapter/Send21.php
+      - run: php tests/run.php
