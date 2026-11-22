@@ -1,0 +1,59 @@
+{
+ "doctype": "DocType",
+ "name": "Send21 Webhook Delivery",
+ "module": "Send21 Payments",
+ "custom": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "delivery_id",
+  "event",
+  "result"
+ ],
+ "fields": [
+  {
+   "fieldname": "delivery_id",
+   "fieldtype": "Data",
+   "label": "Delivery ID",
+   "unique": 1,
+   "reqd": 1,
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "event",
+   "fieldtype": "Data",
+   "label": "Event",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "result",
+   "fieldtype": "Small Text",
+   "label": "Result",
+   "read_only": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "print": 0,
+   "email": 0,
+   "share": 1,
+   "delete": 1,
+   "export": 1,
+   "report": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 1,
+ "modified": "2026-11-22 12:00:00.000000",
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "creation": "2026-11-22 12:00:00.000000",
+ "autoname": "field:delivery_id",
+ "in_create": 1
+}

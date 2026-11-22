@@ -53,3 +53,18 @@ jobs:
         with:
           node-version: 22
       - run: npm test
+
+  frappe-erpnext-app:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: examples/frappe-erpnext-app
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m py_compile send21_payments/*.py send21_payments/send21_payments/doctype/*/*.py
+      - run: python -m unittest discover -s send21_payments/tests -t . -v
