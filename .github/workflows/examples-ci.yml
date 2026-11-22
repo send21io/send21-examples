@@ -112,3 +112,17 @@ jobs:
             --db_host=localhost --db_user=odoo --db_password=odoo -d test_send21 \
             -i payment_send21 --test-tags /payment_send21 --stop-after-init --log-level=test 2>&1 | tee odoo.log
           grep -q "0 failed, 0 error(s)" odoo.log
+
+  odoo-web3-adapter:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: examples/odoo-web3-adapter
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm test

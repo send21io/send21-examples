@@ -1,0 +1,13 @@
+{
+  "name": "send21-odoo-web3-adapter",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "engines": { "node": ">=22.18" },
+  "scripts": {
+    "start": "node --env-file=.env server.ts",
+    "cli": "node --env-file=.env cli.ts",
+    "test": "node --test test/*.test.ts"
+  }
+}
