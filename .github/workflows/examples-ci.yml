@@ -1,0 +1,25 @@
+# Offline tests for the examples. No secrets are used; no live API calls are made.
+name: Examples CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  calcom-app:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: examples/calcom-app
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm test
