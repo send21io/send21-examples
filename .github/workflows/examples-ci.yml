@@ -39,3 +39,17 @@ jobs:
           extensions: curl, mbstring
       - run: php -l src/library/Payment/Adapter/Send21.php
       - run: php tests/run.php
+
+  invoiceninja-integration:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: examples/invoiceninja-integration
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm test
