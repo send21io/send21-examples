@@ -1,0 +1,15 @@
+{
+  "name": "send21-nostr-pay-link-bot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "engines": { "node": ">=20.12" },
+  "scripts": {
+    "start": "node --env-file=.env main.js",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "nostr-tools": "2.26.1"
+  }
+}

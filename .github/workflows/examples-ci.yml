@@ -126,3 +126,18 @@ jobs:
         with:
           node-version: 24
       - run: npm test
+
+  nostr-pay-link-bot:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: examples/nostr-pay-link-bot
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npm test
