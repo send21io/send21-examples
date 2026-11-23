@@ -1,6 +1,6 @@
 const { describe, it } = require("node:test");
 const assert = require("node:assert/strict");
-const { signV2, verifySignatureV2 } = require("../dist/src/lib/common/signature.js");
+const { signV2, verifySignatureV2 } = require("../lib-dist/src/lib/common/signature.js");
 
 const secret = "test-webhook-secret";
 const deliveryId = "delivery-1";

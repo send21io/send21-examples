@@ -3,9 +3,11 @@ import { HttpMethod } from '@activepieces/pieces-common';
 import { send21Auth } from '../auth';
 import { authKey, send21Request } from '../common/client';
 import { DEFAULT_WEBHOOK_EVENTS, WEBHOOK_EVENTS } from '../common/constants';
+import { isHandled, rememberDelivery } from '../common/deliveries';
 import { headerValue, verifySignatureV2 } from '../common/signature';
 
 const STORE_KEY = 'send21_webhook';
+const DELIVERIES_KEY = 'send21_handled_deliveries';
 
 type StoredWebhook = { id: string; secret: string; url: string };
 
@@ -14,7 +16,7 @@ export const draftWebhook = createTrigger({
   name: 'draft_webhook',
   displayName: 'Payment Event (Webhook)',
   description:
-    'Receive signed send21 webhook deliveries. Verifies X-Send21-Signature-V2 (timestamp + delivery id + raw body, 5-minute window) and ignores a delivery with a missing or wrong signature.',
+    'Receive signed send21 webhook deliveries. Verifies X-Send21-Signature-V2 (timestamp + delivery id + raw body, 5-minute window), refuses a delivery with a missing or wrong signature, and runs once per X-Send21-Delivery id.',
   type: TriggerStrategy.WEBHOOK,
   props: {
     events: Property.StaticMultiSelectDropdown({
@@ -74,6 +76,7 @@ export const draftWebhook = createTrigger({
       // Already gone, or the key cannot manage endpoints.
     }
     await context.store.delete(STORE_KEY);
+    await context.store.delete(DELIVERIES_KEY);
   },
   async run(context) {
     const stored = await context.store.get<StoredWebhook>(STORE_KEY);
@@ -89,9 +92,15 @@ export const draftWebhook = createTrigger({
       payload.rawBody ??
       (typeof payload.body === 'string' ? payload.body : JSON.stringify(payload.body ?? {}));
 
-    if (!verifySignatureV2(rawBody, signature, deliveryId, stored.secret)) {
+    if (!deliveryId || !verifySignatureV2(rawBody, signature, deliveryId, stored.secret)) {
       throw new Error('Invalid or missing X-Send21-Signature-V2');
     }
+    // send21 retries deliveries and does not dedupe them, so run once per delivery id.
+    const handled = await context.store.get<string[]>(DELIVERIES_KEY);
+    if (isHandled(handled, deliveryId)) {
+      return [];
+    }
+    await context.store.put<string[]>(DELIVERIES_KEY, rememberDelivery(handled, deliveryId));
 
     const body = (typeof payload.body === 'object' && payload.body !== null ? payload.body : {}) as {
       event?: string;
